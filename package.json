@@ -1,0 +1,35 @@
+{
+  "name": "ask-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that replaces the built-in question tool: spec-driven HTML forms for collecting and presenting info from users",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "ask-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "bun src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "dev": "bun src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22",
+    "bun": ">=1.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  }
+}
