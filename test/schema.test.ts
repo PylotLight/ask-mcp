@@ -29,8 +29,8 @@ describe("askArgsSchema", () => {
     expect(parsed.options).toBeUndefined()
   })
 
-  it("rejects empty blocks and empty title", () => {
-    expect(() => askArgsSchema.parse(baseArgs({ blocks: [] }))).toThrow()
+  it("allows empty blocks (title-only asks) but rejects empty title", () => {
+    expect(askArgsSchema.parse(baseArgs({ blocks: [] })).blocks).toEqual([])
     expect(() => askArgsSchema.parse(baseArgs({ title: "" }))).toThrow()
   })
 

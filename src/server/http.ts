@@ -1,65 +1,23 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
-import { timingSafeEqual } from "node:crypto"
 import { askResultSchema } from "../schema/index.js"
 import { VERSION } from "../version.js"
 import type { Config } from "../config.js"
 import type { ArtifactStore } from "../store/artifacts.js"
 import type { PendingStore } from "../store/pending.js"
+import type { TemplateStore } from "../store/templates.js"
 import { renderGonePage, renderPage } from "../render/page.js"
 import { validateResultAgainstArgs } from "./validate.js"
 import { handleMcpRequest, type McpDeps } from "./mcp.js"
+import { sendJson, readBody, sendHtml } from "./http-util.js"
+import { bearerAuthorized, handleAdminRoute, type AdminDeps } from "./admin.js"
+import { handleApiAsk } from "./api-ask.js"
 
 export interface HttpDeps {
   config: Config
   store: PendingStore
   artifacts: ArtifactStore
-}
-
-const BODY_LIMIT = 2 * 1024 * 1024
-
-function sendJson(res: ServerResponse, status: number, body: unknown): void {
-  if (res.headersSent) return
-  const payload = JSON.stringify(body)
-  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(payload) })
-  res.end(payload)
-}
-
-function readBody(req: IncomingMessage, limit = BODY_LIMIT): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let size = 0
-    const chunks: Buffer[] = []
-    req.on("data", (chunk: Buffer) => {
-      size += chunk.length
-      if (size > limit) {
-        reject(new Error("body too large"))
-        req.destroy()
-        return
-      }
-      chunks.push(chunk)
-    })
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")))
-    req.on("error", reject)
-  })
-}
-
-function sendHtml(res: ServerResponse, status: number, html: string): void {
-  if (res.headersSent) return
-  res.writeHead(status, {
-    "content-type": "text/html; charset=utf-8",
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-  })
-  res.end(html)
-}
-
-/** Constant-time bearer-token comparison. */
-function authorized(deps: HttpDeps, req: IncomingMessage): boolean {
-  if (!deps.config.authToken) return true
-  const header = req.headers.authorization
-  if (typeof header !== "string") return false
-  const expected = Buffer.from(`Bearer ${deps.config.authToken}`)
-  const actual = Buffer.from(header)
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
+  templates: TemplateStore
+  startedAt: number
 }
 
 export function createHttpServer(deps: HttpDeps): ReturnType<typeof createServer> {
@@ -71,12 +29,31 @@ export function createHttpServer(deps: HttpDeps): ReturnType<typeof createServer
 }
 
 function mcpDeps(deps: HttpDeps): McpDeps {
-  return { store: deps.store, artifacts: deps.artifacts, baseUrl: deps.config.baseUrl, openBrowser: deps.config.openBrowser }
+  return { store: deps.store, artifacts: deps.artifacts, templates: deps.templates, baseUrl: deps.config.baseUrl, openBrowser: deps.config.openBrowser }
+}
+
+function adminDeps(deps: HttpDeps): AdminDeps {
+  return { config: deps.config, store: deps.store, artifacts: deps.artifacts, templates: deps.templates, startedAt: deps.startedAt }
 }
 
 async function route(deps: HttpDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? "/", "http://localhost")
   const path = url.pathname
+
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    await handleAdminRoute(adminDeps(deps), req, res, path)
+    return
+  }
+  if (path === "/api/ask" && req.method === "POST") return handleApiAsk(adminDeps(deps), req, res)
+  if (path === "/api/templates" && req.method === "GET") {
+    if (!bearerAuthorized(adminDeps(deps), req)) {
+      res.writeHead(401, { "www-authenticate": "Bearer" })
+      res.end(JSON.stringify({ error: "unauthorized" }))
+      return
+    }
+    const templates = await deps.templates.list()
+    return sendJson(res, 200, { templates: templates.map((t) => ({ id: t.id, title: t.title, description: t.description })) })
+  }
 
   if (path === "/mcp") return handleMcpEndpoint(deps, req, res)
   if (path === "/healthz" && req.method === "GET") return sendJson(res, 200, { ok: true, version: VERSION })
@@ -95,7 +72,7 @@ async function route(deps: HttpDeps, req: IncomingMessage, res: ServerResponse):
 }
 
 async function handleMcpEndpoint(deps: HttpDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
-  if (!authorized(deps, req)) {
+  if (!bearerAuthorized(adminDeps(deps), req)) {
     res.writeHead(401, { "www-authenticate": "Bearer" })
     res.end(JSON.stringify({ error: "unauthorized" }))
     return
