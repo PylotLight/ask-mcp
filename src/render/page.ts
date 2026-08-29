@@ -26,7 +26,7 @@ export function renderPage(args: AskArgs, token: string, status: PendingStatus, 
 <style>${pageStyles(density)}</style>
 </head>
 <body data-token="${esc(token)}" data-status="${status}">
-<div class="bg" aria-hidden="true"><div class="bg-glow-2"></div></div>
+<div class="bg" aria-hidden="true"></div>
 <div class="wrap">
 <header class="brand"><span class="dot"></span>ask<span class="sep">/</span>mcp</header>
 <main class="card">

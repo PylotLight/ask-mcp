@@ -18,6 +18,14 @@ function optionCard(args: AskArgs, id: string): Extract<InfoBlock, { type: "opti
   return card?.type === "option_card" ? card : undefined
 }
 
+function metaClass(meta?: string): string {
+  if (!meta) return ""
+  const m = meta.toLowerCase()
+  if (/(risky|high|irreversible|warn|critical|danger)/.test(m)) return " warn"
+  if (/(ready|low|recommended|success|stable)/.test(m)) return " success"
+  return ""
+}
+
 /** Filter out option_card blocks that duplicate choice options (they are rendered as the choices). */
 export function dedupeOptionCards(args: AskArgs): InfoBlock[] {
   const covered = cardCoveredIds(args)
@@ -43,8 +51,9 @@ export function renderInputRegion(args: AskArgs): string {
           const title = card?.title ?? o.label
           const desc = card?.description ?? o.description
           const meta = card?.meta ?? o.meta
+          const cls = meta ? ` choice-meta${metaClass(meta)}` : " choice-meta"
           return `<label class="choice"><input type="radio" name="choice" value="${esc(o.id)}">
-<span><span class="choice-title">${esc(title)}${meta ? `<span class="choice-meta">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
+<span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
         })
         .join("")
       return `
@@ -59,8 +68,9 @@ export function renderInputRegion(args: AskArgs): string {
           const title = card?.title ?? o.label
           const desc = card?.description ?? o.description
           const meta = card?.meta ?? o.meta
+          const cls = meta ? ` choice-meta${metaClass(meta)}` : " choice-meta"
           return `<label class="choice"><input type="checkbox" name="choice" value="${esc(o.id)}">
-<span><span class="choice-title">${esc(title)}${meta ? `<span class="choice-meta">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
+<span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
         })
         .join("")
       return `
@@ -114,8 +124,10 @@ export function renderInputRegion(args: AskArgs): string {
               control = `<input type="number" id="f-${esc(key)}" value="${f.default ?? ""}" ${attrs} ${f.type === "integer" ? 'step="1"' : ""}>`
               break
             case "boolean":
-              control = `<input type="checkbox" id="f-${esc(key)}" ${f.default ? "checked" : ""} value="1">`
-              break
+              return `<div class="field check-field" id="field-${esc(key)}">
+  <label class="check-row"><input type="checkbox" id="f-${esc(key)}" ${f.default ? "checked" : ""}><span>${esc(f.title)}</span></label>
+  <div class="field-error" id="fe-${esc(key)}">Invalid value.</div>
+</div>`
           }
           return `<div class="field" id="field-${esc(key)}">
   <label for="f-${esc(key)}">${esc(f.title)} ${reqMark}</label>
