@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { mkdir } from "node:fs/promises"
 import { loadConfig, defaultDataDir } from "./config.js"
 import { ArtifactStore } from "./store/artifacts.js"

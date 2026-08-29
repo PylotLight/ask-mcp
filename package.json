@@ -1,11 +1,20 @@
 {
-  "name": "ask-mcp",
+  "name": "@pylotlight/ask-mcp",
   "version": "0.2.0",
   "description": "MCP server that replaces the built-in question tool: spec-driven HTML forms for collecting and presenting info from users",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PylotLight/ask-mcp.git"
+  },
+  "bugs": "https://github.com/PylotLight/ask-mcp/issues",
+  "homepage": "https://github.com/PylotLight/ask-mcp#readme",
   "bin": {
     "ask-mcp": "./dist/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",
