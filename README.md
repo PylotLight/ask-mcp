@@ -10,9 +10,20 @@ agent ── tools/call("ask", {...}) ──► ask-mcp ──► renders form +
 agent ◄── structured result ──── submit/cancel/timeout ◄┘
 ```
 
+## Screenshots
+
+| Choice cards | Other escape hatch |
+| --- | --- |
+| ![Choice cards](docs/screenshots/choice-cards.png) | ![Other input](docs/screenshots/other-input.png) |
+
+| Rich plan + sticky action bar | Info blocks |
+| --- | --- |
+| ![Sticky bar](docs/screenshots/sticky-bar.png) | ![Blocks](docs/screenshots/blocks.png) |
+
 ## Features
 
 - **Five input kinds** — `approve`, `single_choice`, `multi_choice`, `text`, `form`. The `type` field is optional; it's inferred from the fields you provide.
+- **Other escape hatch** — choice prompts accept `other: { placeholder }`, rendering a final pseudo-option with a free-text field: typing auto-selects it, an empty Other blocks submit, and the answer arrives as `otherText`.
 - **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, dividers.
 - **Blocking semantics** — the MCP call stays open until the user responds; results come back as `structuredContent` plus a human-readable summary.
 - **Live pages** — forms poll status over SSE: submitted → delivered, cancelled, expired; the page locks and tries to dismiss itself when done.
@@ -105,7 +116,7 @@ ask-mcp [options]
 | `placeholder` / `multiline` / `minLength` / `maxLength` / `submitLabel` | `text` |
 | anything else (or nothing)          | `approve`       |
 
-Per-kind extras: `approve` accepts `approveLabel`, `rejectLabel`, `noteRequired` (`never|on_reject|always`), `notePlaceholder`; `multi_choice` accepts `min`/`max`; `text` accepts `placeholder`, `multiline`, `minLength`, `maxLength`, `submitLabel`; `form` takes a JSON-schema-ish object (string/number/integer/boolean fields, `enum`, `format`, bounds, `required`).
+Per-kind extras: `approve` accepts `approveLabel`, `rejectLabel`, `noteRequired` (`never|on_reject|always`), `notePlaceholder`; `single_choice`/`multi_choice` accept `other: { placeholder }` and `multi_choice` also `min`/`max`; `text` accepts `placeholder`, `multiline`, `minLength`, `maxLength`, `submitLabel`; `form` takes a JSON-schema-ish object (string/number/integer/boolean fields, `enum`, `format`, bounds, `required`).
 
 ### Results
 
@@ -114,6 +125,7 @@ Per-kind extras: `approve` accepts `approveLabel`, `rejectLabel`, `noteRequired`
 ```jsonc
 { "action": "choose", "optionId": "now", "note": "optional" }
 { "action": "choose", "optionIds": ["a", "b"] }
+{ "action": "choose", "optionId": "__other__", "otherText": "custom answer" }
 { "action": "submit", "value": "free text" }
 { "action": "submit", "values": { "field": "value", "count": 3, "ok": true } }
 { "action": "approve" | "reject" }        // note included when provided
@@ -144,6 +156,8 @@ The `content[0].text` is a one-line summary (e.g. `User chose "Deploy now".`), s
 bun run typecheck     # tsc --noEmit
 bun test              # vitest — schemas, semantic validation, renderer, store
 bun run build         # emit dist/ for node/bun
+bun scripts/capture.ts --mac-only   # render fixtures + layout probes → /tmp/captures
+bun scripts/showcase.ts             # regenerate docs/screenshots (needs fixtures from capture)
 ```
 
 Source layout:
