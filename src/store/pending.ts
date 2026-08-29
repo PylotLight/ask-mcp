@@ -17,13 +17,38 @@ interface Internal extends PendingEntry {
   timeout: NodeJS.Timeout
 }
 
+export type StoreEvent = "create" | "settle" | "consume"
+export type StoreListener = (event: StoreEvent, entry: PendingEntry) => void
+
 /** Terminal entries are kept this long so late page loads/SSE subscribers see the outcome. */
 const TERMINAL_TTL_MS = 10 * 60 * 1000
 
 export class PendingStore {
   private entries = new Map<string, Internal>()
+  private listeners = new Set<StoreListener>()
 
   constructor(private timeoutMs: number) {}
+
+  /** Subscribe to store lifecycle events (admin SSE). Returns an unsubscribe function. */
+  subscribe(listener: StoreListener): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  private emit(event: StoreEvent, entry: PendingEntry): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(event, entry)
+      } catch {
+        // A broken admin subscriber must never affect ask state transitions.
+      }
+    }
+  }
+
+  /** Runtime-adjustable ask timeout (admin config updates). */
+  setTimeout(ms: number): void {
+    if (ms >= 1000) this.timeoutMs = ms
+  }
 
   create(args: AskArgs): { entry: PendingEntry; promise: Promise<AskResult> } {
     this.pruneTerminal()
@@ -35,7 +60,9 @@ export class PendingStore {
     })
     const timeout = setTimeout(() => this.finish(token, "expired", { action: "timeout" }), this.timeoutMs)
     timeout.unref()
-    this.entries.set(token, { requestId, token, args, createdAt: Date.now(), status: "pending", resolve, timeout })
+    const internal: Internal = { requestId, token, args, createdAt: Date.now(), status: "pending", resolve, timeout }
+    this.entries.set(token, internal)
+    this.emit("create", this.snapshot(token)!)
     return { entry: this.snapshot(token)!, promise }
   }
 
@@ -62,7 +89,21 @@ export class PendingStore {
   /** Tool handler calls this once the answer has been delivered, so the page can close. */
   markConsumed(token: string): void {
     const entry = this.entries.get(token)
-    if (entry?.status === "submitted") entry.status = "consumed"
+    if (entry?.status === "submitted") {
+      entry.status = "consumed"
+      this.emit("consume", this.snapshot(token)!)
+    }
+  }
+
+  /** All entries (pending first, then terminal by age) for the admin panel. */
+  list(): PendingEntry[] {
+    return [...this.entries.values()]
+      .map((e) => this.snapshot(e.token)!)
+      .sort((a, b) => {
+        const aPending = a.status === "pending" ? 0 : 1
+        const bPending = b.status === "pending" ? 0 : 1
+        return aPending - bPending || b.createdAt - a.createdAt
+      })
   }
 
   /** Resolve everything still pending (server shutdown). */
@@ -80,6 +121,7 @@ export class PendingStore {
     entry.status = status
     entry.result = storedResult ?? result
     entry.resolve(result)
+    this.emit("settle", this.snapshot(token)!)
     return true
   }
 

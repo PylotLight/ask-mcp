@@ -73,15 +73,18 @@ Any client that speaks MCP Streamable HTTP can point at `http://<host>:8787/mcp`
 
 ```
 ask-mcp [options]
+ask-mcp install-commands [--dir <target>] [--force]
 
   --port <n>           HTTP port (default: 8787)
   --host <addr>        Bind address (default: 127.0.0.1)
   --base-url <url>     Public base URL for form links
+  --config <path>      Config file (default: ~/.config/ask-mcp/config.json; CLI > env > file > defaults)
   --data-dir <dir>     Artifact directory (default: ~/.config/ask-mcp)
   --retention-days <n> Prune artifacts older than n days at startup + every 6 h (default: 0 = forever)
   --timeout-ms <n>     Ask blocking timeout (default: 600000, min 1000)
   --surface <mode>     auto | apps | browser (MCP Apps is deferred; see docs/)
   --auth-token <t>     Require Bearer auth on the MCP endpoint
+  --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
   --no-open            Don't auto-open forms in a browser
   -h, --help           Show help
 ```
@@ -135,6 +138,35 @@ Per-kind extras: `approve` accepts `approveLabel`, `rejectLabel`, `noteRequired`
 
 The `content[0].text` is a one-line summary (e.g. `User chose "Deploy now".`), so clients that surface text get a readable answer too. Submissions are re-validated server-side against the original ask before they're accepted.
 
+### Templates
+
+Recurring interactions can be saved as named templates (`~/.config/ask-mcp/templates/<id>.json`, editable in the admin panel) and referenced by id — explicit fields override the template:
+
+```jsonc
+{ "template": "deploy-confirm", "title": "Deploy to staging?" }
+```
+
+Use the `ask_templates` tool to list what's installed. See [docs/commands.md](docs/commands.md).
+
+## Slash command (opencode / openchamber)
+
+```bash
+ask-mcp install-commands          # installs /ask-admin
+```
+
+`/ask-admin` opens the admin panel (`/admin`) in the browser. All `ask` interactions are agent-driven via the MCP `ask` tool (and `ask_templates` for discovery); the `/api/ask` + `/api/templates` HTTP endpoints are the plain-HTTP twin for scripts. See [docs/commands.md](docs/commands.md).
+
+## Admin panel
+
+Start with `--admin-token <t>` (or `--auth-token`) and open `/admin`:
+
+- **Live asks** — pending queue with one-click cancel, streamed over SSE
+- **History** — the day-partitioned artifact trail (spec/response side by side, archived renders)
+- **Config** — a form over `~/.config/ask-mcp/config.json` (CLI > env > file precedence; safe fields apply live)
+- **Templates** — CRUD for ask recipes, validated with the same pipeline as live asks
+
+Hidden (404) until a token is configured; see [docs/admin.md](docs/admin.md).
+
 ## Authoring guidance for models
 
 - Put alternatives in `option_card` blocks and reference the same ids in choice options — cards become the clickable choices automatically (no duplication).
@@ -165,12 +197,12 @@ Source layout:
 ```
 src/
   index.ts            entrypoint: config, stores, http server, signals
-  config.ts           CLI parsing + validation (--help has the full list)
-  version.ts          single version constant
+  config.ts           CLI/env/config-file parsing + validation (--help has the full list)
+  commands/           install-commands (opencode/openchamber slash command installer)
   schema/             zod: blocks, input spec (+ lenient inference), args, results
-  server/             http routes, mcp endpoint (stateless Streamable HTTP), summary, validation
-  store/              pending asks (in-memory, TTL/pruning), artifact persistence
-  render/             page/styles/client script/blocks/markdown/escaping
+  server/             http routes, mcp endpoint, admin panel routes, /api/ask, shared ask flow
+  store/              pending asks (in-memory, TTL/pruning), artifact persistence, templates
+  render/             page/styles/client script/blocks/markdown/escaping + admin dashboard UI
   util/               tokens, open-in-browser
 ```
 
@@ -178,4 +210,4 @@ Artifacts land in `--data-dir` (default `~/.config/ask-mcp`) as `YYYY-MM-DD/<tok
 
 ## Roadmap
 
-An exploration of an admin panel (live ask monitor, history, re-asks), richer interaction blocks, and config management lives in [docs/admin-roadmap.md](docs/admin-roadmap.md). MCP Apps (rendering the ask inside the MCP client itself) is designed but intentionally deferred — see [docs/surface-a-mcp-apps.md](docs/surface-a-mcp-apps.md).
+The admin panel (live ask monitor, history, config, templates) and the `/ask-admin` slash command are implemented — see [docs/admin.md](docs/admin.md) and [docs/commands.md](docs/commands.md). The broader exploration (re-asks, webhooks, richer interaction blocks) lives in [docs/admin-roadmap.md](docs/admin-roadmap.md). MCP Apps (rendering the ask inside the MCP client itself) is designed but intentionally deferred — see [docs/surface-a-mcp-apps.md](docs/surface-a-mcp-apps.md).
