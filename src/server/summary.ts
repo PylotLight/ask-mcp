@@ -1,6 +1,8 @@
 import type { AskArgs, AskResult } from "../schema/index.js"
+import { OTHER_ID } from "../schema/input.js"
 
 function labelFor(args: AskArgs, id: string): string {
+  if (id === OTHER_ID) return "Other"
   if (args.input.type === "single_choice" || args.input.type === "multi_choice") {
     return args.input.options.find((o) => o.id === id)?.label ?? id
   }
@@ -21,9 +23,11 @@ export function summarizeResult(args: AskArgs, r: AskResult): string {
       return `User rejected "${args.title}".${note}`
     case "choose": {
       if (r.optionIds?.length) {
-        return `User selected: ${r.optionIds.map((id) => labelFor(args, id)).join(", ")}.${note}`
+        const labels = r.optionIds.map((id) => (id === OTHER_ID && r.otherText ? `Other: "${clip(r.otherText)}"` : labelFor(args, id)))
+        return `User selected: ${labels.join(", ")}.${note}`
       }
       if (r.optionId) {
+        if (r.optionId === OTHER_ID && r.otherText) return `User chose "${clip(r.otherText)}" (custom "Other").${note}`
         return `User chose "${labelFor(args, r.optionId)}".${note}`
       }
       return `User made a choice.${note}`

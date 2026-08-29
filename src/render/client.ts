@@ -64,15 +64,20 @@ export function clientScript(args: AskArgs): string {
       return ok;
     }
     if (type === "single_choice") {
-      var ok1 = !!document.querySelector('input[name="choice"]:checked');
+      var sel = document.querySelector('input[name="choice"]:checked');
+      var ok1 = !!sel;
+      if (ok1 && sel.value === "__other__") ok1 = !!$("other-input") && $("other-input").value.trim().length > 0;
       $("choice-list").classList.toggle("invalid", !ok1);
       return ok1;
     }
     if (type === "multi_choice") {
-      var n = document.querySelectorAll('input[name="choice"]:checked').length;
+      var checked = Array.prototype.slice.call(document.querySelectorAll('input[name="choice"]:checked'));
+      var n = checked.length;
       var min = Number($("choice-list").dataset.min || 0), max = Number($("choice-list").dataset.max || Infinity);
-      var ok2 = n >= min && n <= max;
-      $("choice-error").style.display = ok2 ? "none" : "block";
+      var otherSel = checked.some(function (c) { return c.value === "__other__"; });
+      var okOther = !otherSel || (!!$("other-input") && $("other-input").value.trim().length > 0);
+      var ok2 = n >= min && n <= max && okOther;
+      $("choice-error").style.display = (n >= min && n <= max) ? "none" : "block";
       return ok2;
     }
     if (type === "text") {
@@ -113,10 +118,17 @@ export function clientScript(args: AskArgs): string {
       if (note) r.note = note;
       return r;
     }
-    if (type === "single_choice") return { action: "choose", optionId: document.querySelector('input[name="choice"]:checked').value };
+    if (type === "single_choice") {
+      var sel = document.querySelector('input[name="choice"]:checked');
+      var r = { action: "choose", optionId: sel.value };
+      if (sel.value === "__other__") r.otherText = $("other-input").value.trim();
+      return r;
+    }
     if (type === "multi_choice") {
       var ids = Array.prototype.map.call(document.querySelectorAll('input[name="choice"]:checked'), function (c) { return c.value; });
-      return { action: "choose", optionIds: ids };
+      var r = { action: "choose", optionIds: ids };
+      if (ids.indexOf("__other__") !== -1) r.otherText = $("other-input").value.trim();
+      return r;
     }
     if (type === "text") return { action: "submit", value: $("text-input").value };
     if (type === "form") {
@@ -203,6 +215,25 @@ export function clientScript(args: AskArgs): string {
       if (CFG.inputType === "single_choice") validate();
     });
   });
+
+  var otherInput = $("other-input");
+  if (otherInput) {
+    otherInput.addEventListener("input", function () {
+      var box = document.querySelector('input[name="choice"][value="__other__"]');
+      if (!box || box.checked) return;
+      if (CFG.inputType === "single_choice") {
+        box.checked = true;
+        box.dispatchEvent(new Event("change"));
+      } else {
+        var n = document.querySelectorAll('input[name="choice"]:checked').length;
+        var maxN = Number($("choice-list").dataset.max || Infinity);
+        if (n < maxN) {
+          box.checked = true;
+          box.dispatchEvent(new Event("change"));
+        }
+      }
+    });
+  }
 
   if (CFG.initialStatus === "pending") {
     listen();

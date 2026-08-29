@@ -1,4 +1,5 @@
 import type { AskArgs, AskResult } from "../schema/index.js"
+import { OTHER_ID } from "../schema/input.js"
 
 /** Semantic validation of a browser submission against the original ask args. */
 export function validateResultAgainstArgs(args: AskArgs, result: AskResult): string | null {
@@ -17,6 +18,11 @@ export function validateResultAgainstArgs(args: AskArgs, result: AskResult): str
     case "single_choice": {
       if (result.action === "cancel") return null
       if (result.action !== "choose" || !result.optionId) return "expected a choice"
+      if (result.optionId === OTHER_ID) {
+        if (!input.other) return "other input is not enabled for this question"
+        if (!result.otherText?.trim()) return "otherText is required when choosing the other option"
+        return null
+      }
       if (!input.options.some((o) => o.id === result.optionId)) return `unknown optionId: ${result.optionId}`
       return null
     }
@@ -29,7 +35,11 @@ export function validateResultAgainstArgs(args: AskArgs, result: AskResult): str
         return `expected between ${min} and ${max} selections`
       }
       const known = new Set(input.options.map((o) => o.id))
-      if (!result.optionIds.every((id) => known.has(id))) return "unknown optionId in selection"
+      if (!result.optionIds.every((id) => known.has(id) || id === OTHER_ID)) return "unknown optionId in selection"
+      if (result.optionIds.includes(OTHER_ID)) {
+        if (!input.other) return "other input is not enabled for this question"
+        if (!result.otherText?.trim()) return "otherText is required when choosing the other option"
+      }
       return null
     }
     case "text": {

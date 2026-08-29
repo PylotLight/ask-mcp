@@ -283,6 +283,11 @@ tbody tr:hover { background: var(--glass-hi); }
 .choice.selected::after { opacity: 1; transform: scale(1); }
 .choice.selected .choice-desc { color: rgba(255,255,255,.68); }
 @media (prefers-color-scheme: light) { .choice.selected .choice-desc { color: rgba(24,24,27,.68); } }
+.choice-other .other-input {
+  margin-top: 8px; width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-xs);
+  background: var(--control); color: var(--text); font: inherit; font-size: .8125rem;
+}
+.choice-other .other-input:focus { outline: none; border-color: rgba(129,140,248,.7); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .choice-count {
   margin-top: 10px; font-size: .85em; color: var(--muted);

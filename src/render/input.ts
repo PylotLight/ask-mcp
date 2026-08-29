@@ -1,4 +1,5 @@
 import type { AskArgs, InfoBlock } from "../schema/index.js"
+import { OTHER_ID } from "../schema/input.js"
 import { esc } from "./escape.js"
 
 /** Ids of choice options that already have a matching option_card block. */
@@ -24,6 +25,13 @@ function metaClass(meta?: string): string {
   if (/(risky|high|irreversible|warn|critical|danger)/.test(m)) return " warn"
   if (/(ready|low|recommended|success|stable)/.test(m)) return " success"
   return ""
+}
+
+/** Final pseudo-option holding the free-text escape hatch. */
+function otherChoice(kind: "radio" | "checkbox", placeholder?: string): string {
+  const ph = esc(placeholder ?? "Type your own…")
+  return `<label class="choice choice-other"><input type="${kind}" name="choice" value="${OTHER_ID}">
+<span><span class="choice-title">Other</span><input type="text" class="other-input" id="other-input" placeholder="${ph}" aria-label="Other"></span></label>`
 }
 
 /** Filter out option_card blocks that duplicate choice options (they are rendered as the choices). */
@@ -57,7 +65,7 @@ export function renderInputRegion(args: AskArgs): string {
         })
         .join("")
       return `
-<div class="choice-list" id="choice-list" role="radiogroup">${items}</div>`
+<div class="choice-list" id="choice-list" role="radiogroup">${items}${input.other ? otherChoice("radio", input.other.placeholder) : ""}</div>`
     }
     case "multi_choice": {
       const min = input.min ?? 0
@@ -74,7 +82,7 @@ export function renderInputRegion(args: AskArgs): string {
         })
         .join("")
       return `
-<div class="choice-list" id="choice-list" data-min="${min}" data-max="${max}">${items}</div>
+<div class="choice-list" id="choice-list" data-min="${min}" data-max="${max}">${items}${input.other ? otherChoice("checkbox", input.other.placeholder) : ""}</div>
 <div class="field-error" id="choice-error">Select between ${min} and ${max} options.</div>
 <div class="choice-count" id="choice-count" hidden></div>`
     }
