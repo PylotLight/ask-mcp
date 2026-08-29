@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { timingSafeEqual } from "node:crypto"
 import { askResultSchema } from "../schema/index.js"
+import { VERSION } from "../version.js"
 import type { Config } from "../config.js"
 import type { ArtifactStore } from "../store/artifacts.js"
 import type { PendingStore } from "../store/pending.js"
@@ -78,7 +79,7 @@ async function route(deps: HttpDeps, req: IncomingMessage, res: ServerResponse):
   const path = url.pathname
 
   if (path === "/mcp") return handleMcpEndpoint(deps, req, res)
-  if (path === "/healthz" && req.method === "GET") return sendJson(res, 200, { ok: true })
+  if (path === "/healthz" && req.method === "GET") return sendJson(res, 200, { ok: true, version: VERSION })
 
   const formMatch = /^\/f\/([A-Za-z0-9_-]{10,64})(?:\/(submit|cancel|events))?$/.exec(path)
   if (formMatch) {

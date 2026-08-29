@@ -44,6 +44,21 @@ const fixtures: Record<string, Fixture> = {
     },
     options: { density: "comfortable" as const },
   },
+  "choice-other": {
+    title: "Choose a release channel",
+    subtitle: "Pick one — or define your own",
+    blocks: [{ type: "paragraph", text: "Typing in the Other field auto-selects it; empty Other blocks submit." }],
+    input: {
+      type: "single_choice" as const,
+      options: [
+        { id: "stable", label: "Stable", description: "Monthly cadence, fully baked", meta: "recommended" },
+        { id: "canary", label: "Canary", description: "Weekly, early features" },
+        { id: "lts", label: "LTS", description: "Quarterly, security-only" },
+      ],
+      other: { placeholder: "e.g. shadow — mirror prod traffic, zero responses" },
+    },
+    options: { density: "comfortable" as const },
+  },
   "form-6": {
     title: "New service scaffold",
     blocks: [{ type: "paragraph", text: "Fill the service manifest — required fields marked *." }],
@@ -225,15 +240,63 @@ try {
   })`);
   console.log("assert:longPlan", longCheck);
 
+  // Hardened probe: pin check mid-page (while the card still extends past the viewport),
+  // plus end-of-page check that the bar sits flush on the card's bottom shelf.
+  await probe.evaluate(`(function(){
+    var cardBottomAbs = document.querySelector('.card').getBoundingClientRect().bottom + window.scrollY;
+    var maxPin = Math.max(0, cardBottomAbs - window.innerHeight); // last scroll pos where the bar can still pin
+    window.scrollTo({ top: maxPin * 0.5, behavior: "instant" });
+    return maxPin;
+  })()`);
+  await new Promise((r) => setTimeout(r, 300));
+  const midScrollCheck = await probe.evaluate(`JSON.stringify((function(){
+    var a = document.querySelector('.actions').getBoundingClientRect();
+    var c = document.querySelector('.card').getBoundingClientRect();
+    return {
+      scrollY: Math.round(window.scrollY),
+      actionsBottom: Math.round(a.bottom),
+      innerH: window.innerHeight,
+      pinned: Math.abs(a.bottom - window.innerHeight) <= 2,
+      approveVisible: (()=>{ var r=document.querySelector('#btn-approve').getBoundingClientRect(); return r.top >= a.top && r.bottom <= a.bottom })()
+    };
+  })())`);
+  console.log("assert:longPlan@midScroll", midScrollCheck);
+  await probe.evaluate('window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })');
+  await new Promise((r) => setTimeout(r, 300));
+  const endScrollCheck = await probe.evaluate(`JSON.stringify((function(){
+    var a = document.querySelector('.actions').getBoundingClientRect();
+    var c = document.querySelector('.card').getBoundingClientRect();
+    return { scrollY: Math.round(window.scrollY), barFlushWithCard: Math.abs(a.bottom - c.bottom) <= 2 };
+  })())`);
+  console.log("assert:longPlan@endScroll", endScrollCheck);
+
   // Probe form-6: inline boolean
   await probe.navigate(`file:///tmp/ask-fixtures/form-6.html`);
   await new Promise((r) => setTimeout(r, 620));
   const formCheck = await probe.evaluate(`JSON.stringify({
     checkRow: !!document.querySelector('.check-row'),
     checkRowBorderRadius: document.querySelector('.check-row') ? getComputedStyle(document.querySelector('.check-row')).borderRadius : null,
-    checkInput: document.querySelector('.check-row input') ? getComputedStyle(document.querySelector('.check-row input')).width : null
+    checkInput: document.querySelector('.check-row input') ? getComputedStyle(document.querySelector('.check-row input')).width : null,
+    selectHeight: document.querySelector('.field select') ? Math.round(document.querySelector('.field select').getBoundingClientRect().height) : null,
+    inputHeight: document.querySelector('.field input[type="email"]') ? Math.round(document.querySelector('.field input[type="email"]').getBoundingClientRect().height) : null
   })`);
   console.log("assert:form-6", formCheck);
+
+  // Probe choice-other: type into Other -> pseudo-option auto-selects via client JS
+  await probe.navigate(`file:///tmp/ask-fixtures/choice-other.html`);
+  await new Promise((r) => setTimeout(r, 620));
+  await probe.evaluate(`(function(){ var i=document.getElementById('other-input'); i.value='shadow traffic'; i.dispatchEvent(new Event('input')); })()`);
+  const otherCheck = await probe.evaluate(`JSON.stringify({
+    otherInputPresent: !!document.getElementById('other-input'),
+    autoSelected: (function(){ var b=document.querySelector('input[name="choice"][value="__other__"]'); return b ? b.checked : null })(),
+    selectedClassApplied: !!document.querySelector('.choice-other.selected'),
+    emptyOtherBlocked: (function(){
+      var b=document.querySelector('input[name="choice"][value="__other__"]');
+      b.checked = false; b.dispatchEvent(new Event('change'));
+      return document.getElementById('choice-list').classList.contains('invalid');
+    })()
+  })`);
+  console.log("assert:choice-other", otherCheck);
 } catch (e) {
   console.warn("assert probe failed", e);
 }

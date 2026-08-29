@@ -71,6 +71,47 @@ describe("validateResultAgainstArgs", () => {
     expect(validateResultAgainstArgs(multiArgs, { action: "choose", optionIds: ["a", "b"] })).toBeNull()
   })
 
+  const otherSingleArgs: AskArgs = {
+    title: "Pick",
+    blocks: [],
+    input: {
+      type: "single_choice",
+      options: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
+      other: { placeholder: "Type your own" },
+    },
+  }
+
+  it("accepts the Other escape hatch only when configured and non-empty", () => {
+    expect(validateResultAgainstArgs(otherSingleArgs, { action: "choose", optionId: "__other__", otherText: "custom path" })).toBeNull()
+    expect(validateResultAgainstArgs(otherSingleArgs, { action: "choose", optionId: "__other__" })).toMatch(/otherText is required/)
+    expect(validateResultAgainstArgs(otherSingleArgs, { action: "choose", optionId: "__other__", otherText: "   " })).toMatch(/otherText is required/)
+    expect(validateResultAgainstArgs(choiceArgs, { action: "choose", optionId: "__other__", otherText: "x" })).toMatch(/not enabled/)
+    expect(validateResultAgainstArgs(otherSingleArgs, { action: "choose", optionId: "a" })).toBeNull()
+  })
+
+  it("counts the Other option toward multi min/max and requires text", () => {
+    const multiOtherArgs: AskArgs = {
+      title: "Pick many",
+      blocks: [],
+      input: {
+        type: "multi_choice",
+        options: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
+        min: 1,
+        max: 2,
+        other: {},
+      },
+    }
+    expect(validateResultAgainstArgs(multiOtherArgs, { action: "choose", optionIds: ["__other__"], otherText: "custom" })).toBeNull()
+    expect(validateResultAgainstArgs(multiOtherArgs, { action: "choose", optionIds: ["__other__"] })).toMatch(/otherText is required/)
+    expect(validateResultAgainstArgs(multiOtherArgs, { action: "choose", optionIds: ["a", "__other__"], otherText: "custom" })).toBeNull()
+    expect(validateResultAgainstArgs(multiOtherArgs, { action: "choose", optionIds: ["a", "b", "__other__"], otherText: "x" })).toMatch(/between 1 and 2/)
+  })
+
+  it("summarizes the Other choice with its text", () => {
+    expect(summarizeResult(otherSingleArgs, { action: "choose", optionId: "__other__", otherText: "ship via crane" })).toContain('ship via crane')
+    expect(summarizeResult(multiArgs, { action: "choose", optionIds: ["a", "__other__"], otherText: "misc" })).toContain("Other")
+  })
+
   it("enforces text length bounds", () => {
     expect(validateResultAgainstArgs(textArgs, { action: "submit", value: "ab" })).toMatch(/out of bounds/)
     expect(validateResultAgainstArgs(textArgs, { action: "submit", value: "abc" })).toBeNull()

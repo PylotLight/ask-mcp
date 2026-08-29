@@ -12,6 +12,15 @@ export const choiceOptionSchema = z.object({
 })
 export type ChoiceOption = z.infer<typeof choiceOptionSchema>
 
+/** Free-text escape hatch appended as a final pseudo-option ("Other"). */
+export const otherOptionSchema = z.object({
+  placeholder: z.string().max(200).optional(),
+})
+export type OtherOption = z.infer<typeof otherOptionSchema>
+
+/** Sentinel optionId used by the rendered Other pseudo-option. */
+export const OTHER_ID = "__other__"
+
 const fieldTitle = z.string().min(1).max(200)
 const fieldDescription = z.string().max(500).optional()
 
@@ -77,6 +86,7 @@ export const inputSpecSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("single_choice"),
     options: z.array(choiceOptionSchema).min(2).max(MAX_OPTIONS),
+    other: otherOptionSchema.optional(),
   }),
   z
     .object({
@@ -84,6 +94,7 @@ export const inputSpecSchema = z.discriminatedUnion("type", [
       options: z.array(choiceOptionSchema).min(1).max(MAX_OPTIONS),
       min: z.number().int().min(0).optional(),
       max: z.number().int().min(1).optional(),
+      other: otherOptionSchema.optional(),
     })
     .refine((i) => (i.min ?? 0) <= (i.max ?? i.options.length) && (i.max ?? i.options.length) <= i.options.length, {
       message: "selection min/max must be consistent with each other and the option count",
@@ -117,6 +128,7 @@ export const lenientInputSpecSchema = z.object({
   noteRequired: z.enum(["never", "on_reject", "always"]).optional(),
   notePlaceholder: z.string().max(200).optional(),
   options: z.array(choiceOptionSchema).max(MAX_OPTIONS).optional(),
+  other: otherOptionSchema.optional(),
   min: z.number().int().min(0).optional(),
   max: z.number().int().min(1).optional(),
   placeholder: z.string().max(200).optional(),
@@ -154,9 +166,9 @@ export function normalizeInputSpec(raw: unknown): InputSpec {
         notePlaceholder: lenient.notePlaceholder,
       }
     case "single_choice":
-      return { type, options: lenient.options ?? [] }
+      return { type, options: lenient.options ?? [], other: lenient.other }
     case "multi_choice":
-      return { type, options: lenient.options ?? [], min: lenient.min, max: lenient.max }
+      return { type, options: lenient.options ?? [], min: lenient.min, max: lenient.max, other: lenient.other }
     case "text":
       return {
         type,
