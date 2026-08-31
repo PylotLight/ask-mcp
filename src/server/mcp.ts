@@ -45,7 +45,7 @@ The form URL opens in the user's browser automatically when the call starts.`
  * The blocking `ask` handler keeps the HTTP response open until the user answers.
  */
 export async function handleMcpRequest(deps: McpDeps, req: IncomingMessage, res: ServerResponse, body?: unknown): Promise<void> {
-  const server = buildServer(deps, res)
+  const server = createMcpServer(deps, res)
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
   res.on("close", () => {
     void transport.close()
@@ -55,7 +55,12 @@ export async function handleMcpRequest(deps: McpDeps, req: IncomingMessage, res:
   await transport.handleRequest(req, res, body)
 }
 
-function buildServer(deps: McpDeps, res?: ServerResponse): McpServer {
+/**
+ * Build the MCP server (tools: ask, ask_templates). Shared by the HTTP
+ * endpoint (stateless, per-request with `res` wired for disconnect cancels)
+ * and the stdio transport (single long-lived instance, `res` undefined).
+ */
+export function createMcpServer(deps: McpDeps, res?: ServerResponse): McpServer {
   const server = new McpServer({ name: "ask-mcp", version: VERSION })
 
   server.registerTool(

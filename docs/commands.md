@@ -5,9 +5,9 @@ The primary surface is the MCP tools (`ask`, `ask_templates`) and the plain-HTTP
 ## Installing the slash command
 
 ```bash
-ask-mcp install-commands                 # → ~/.config/opencode/commands/ask-admin.md (global)
-ask-mcp install-commands --force         # overwrite existing file
-ask-mcp install-commands --dir .opencode/commands --base-url http://127.0.0.1:8787
+npx -y @pylotlight/ask-mcp install-commands          # → ~/.config/opencode/commands/ask-admin.md (global)
+npx -y @pylotlight/ask-mcp install-commands --force  # overwrite existing file
+npx -y @pylotlight/ask-mcp install-commands --dir .opencode/commands --base-url http://127.0.0.1:8787
 ```
 
 Installed file (skipped if it already exists, unless `--force`; restart the client afterwards):

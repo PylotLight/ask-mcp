@@ -1,6 +1,6 @@
 {
   "name": "@pylotlight/ask-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP server that replaces the built-in question tool: spec-driven HTML forms for collecting and presenting info from users",
   "type": "module",
   "license": "MIT",

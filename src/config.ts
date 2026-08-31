@@ -18,6 +18,8 @@ export interface Config {
   authToken?: string
   adminToken?: string
   openBrowser: boolean
+  /** Serve MCP over stdin/stdout (client-spawned mode); HTTP still serves form pages. */
+  stdio: boolean
   /** Resolved path of the config file (for the admin panel's save endpoint). */
   configPath: string
 }
@@ -45,6 +47,12 @@ const USAGE = `ask-mcp v${VERSION} — blocking "ask the user" tool served as re
 
 Usage: ask-mcp [options]
        ask-mcp install-commands [--dir <target>] [--force]
+
+Transport:
+
+  --stdio              Serve MCP over stdin/stdout — for clients that spawn the
+                       package directly ("claude mcp add ask -- npx -y @pylotlight/ask-mcp --stdio").
+                       Form pages still open via a short-lived loopback HTTP server.
 
 Server options:
 
@@ -75,7 +83,7 @@ function int(value: string, flag: string): number {
 }
 
 /** Raw, unvalidated settings collected from CLI/env/file before precedence merging. */
-type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "surface" | "authToken" | "adminToken" | "noOpen", string | boolean>>
+type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "surface" | "authToken" | "adminToken" | "noOpen" | "stdio", string | boolean>>
 
 const fileSchema = z.object({
   port: z.number().int().optional(),
@@ -133,6 +141,7 @@ function envSettings(): RawSettings {
   if (str("ASK_MCP_AUTH_TOKEN")) raw.authToken = str("ASK_MCP_AUTH_TOKEN")
   if (str("ASK_MCP_ADMIN_TOKEN")) raw.adminToken = str("ASK_MCP_ADMIN_TOKEN")
   if (env.ASK_MCP_NO_OPEN === "1" || env.ASK_MCP_NO_OPEN === "true") raw.noOpen = true
+  if (env.ASK_MCP_STDIO === "1" || env.ASK_MCP_STDIO === "true") raw.stdio = true
   return raw
 }
 
@@ -181,6 +190,9 @@ function parseCli(argv: string[]): { settings: RawSettings; configPath?: string;
       case "--no-open":
         settings.noOpen = true
         break
+      case "--stdio":
+        settings.stdio = true
+        break
       case "-h":
       case "--help":
         help = true
@@ -217,7 +229,7 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
   const env = envSettings()
 
   // Precedence: CLI > env > file.
-  const merged: FileSettings & { noOpen?: boolean } = { ...file, ...cleanRaw(env), ...cleanRaw(cli) }
+  const merged: FileSettings & { noOpen?: boolean; stdio?: boolean } = { ...file, ...cleanRaw(env), ...cleanRaw(cli) }
 
   const port = resolveInt(merged.port ?? DEFAULT_PORT, "--port", 1) ?? DEFAULT_PORT
   if (!(port >= 1 && port <= 65535)) throw new Error(`--port must be between 1 and 65535, got: ${port}`)
@@ -225,6 +237,7 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
   const retentionDays = resolveInt(merged.retentionDays ?? 0, "--retention-days", 0)!
   const timeoutMs = resolveInt(merged.timeoutMs ?? DEFAULT_TIMEOUT_MS, "--timeout-ms", 1000)!
   const surface = resolveSurface(merged.surface)
+  const stdio = merged.stdio === true
 
   return {
     port,
@@ -237,13 +250,14 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
     authToken: merged.authToken,
     adminToken: merged.adminToken ?? merged.authToken,
     openBrowser: isLoopback(host) && !merged.noOpen,
+    stdio,
     configPath,
   }
 }
 
 /** Env values arrive as strings; file values as real types. Keep them uniform for merging. */
-function cleanRaw(raw: RawSettings): FileSettings {
-  const out: FileSettings = {}
+function cleanRaw(raw: RawSettings): FileSettings & { stdio?: boolean } {
+  const out: FileSettings & { stdio?: boolean } = {}
   const assign = <K extends keyof FileSettings>(key: K, value: FileSettings[K]): void => {
     if (value !== undefined) out[key] = value
   }
@@ -260,6 +274,7 @@ function cleanRaw(raw: RawSettings): FileSettings {
   assign("authToken", typeof raw.authToken === "string" ? raw.authToken : undefined)
   assign("adminToken", typeof raw.adminToken === "string" ? raw.adminToken : undefined)
   if (raw.noOpen === true) out.noOpen = true
+  if (raw.stdio === true) out.stdio = true
   return out
 }
 
