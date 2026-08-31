@@ -7,7 +7,7 @@ ask-mcp ships a token-gated admin surface at `/admin` for managing asks, config,
 The panel is **disabled by default** and hidden: every `/admin*` route returns `404` until an admin token is configured.
 
 ```bash
-ask-mcp --admin-token my-secret          # or --auth-token (admin falls back to it)
+npx -y @pylotlight/ask-mcp --admin-token my-secret   # or --auth-token (admin falls back to it)
 # env: ASK_MCP_ADMIN_TOKEN=... / ASK_MCP_AUTH_TOKEN=...
 # or in config.json: { "adminToken": "..." }
 ```

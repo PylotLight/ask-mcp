@@ -22,7 +22,7 @@ bun src/index.ts [flags]   # run the server from source
 ## Architecture map
 
 ```
-src/index.ts        entrypoint: config → stores → http server → signals. Dispatches `install-commands`.
+src/index.ts        entrypoint: config → stores → http server → signals; `--stdio` adds the stdin/stdout MCP transport (client-spawned). Dispatches `install-commands`.
 src/config.ts       CLI > env > config file > defaults. zod-validated. writeConfigFile() saves with .bak.
 src/version.ts      single VERSION constant (keep in sync with package.json).
 src/schema/         zod schemas: blocks, input spec (lenient inference), args, results.
@@ -35,7 +35,7 @@ src/server/
   http-util.ts      sendJson / readBody / sendHtml helpers.
 src/store/
   pending.ts        in-memory single-shot ask store; event emitter (create|settle|consume) for SSE.
-  artifacts.ts      day-partitioned JSON records: <dataDir>/<YYYY-MM-DD>/<token>/{spec,response,render}.json + retention pruning. Path regexes guard traversal.
+  artifacts.ts      day-partitioned JSON records: <dataDir>/<YYYY-MM-DD>/<token>/{spec.json,response.json,render.html} + retention pruning. Path regexes guard traversal.
   templates.ts      <dataDir>/templates/*.json; seeded on first run; validation reuses normalizeAskArgs.
 src/render/         hand-rolled HTML/CSS/JS (no framework). styles.ts holds the glass design tokens; page.ts/client.ts are the ask form; admin.ts/adminClient.ts the panel.
 src/commands/       install-commands: writes ask-admin.md to ~/.config/opencode/commands (all ask flows are agent-driven via MCP).
