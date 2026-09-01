@@ -6,7 +6,7 @@ import { esc } from "./escape.js"
 import { dedupeOptionCards, renderActions, renderInputRegion } from "./input.js"
 import { pageStyles } from "./styles.js"
 
-export function renderPage(args: AskArgs, token: string, status: PendingStatus, density: "comfortable" | "compact" = "comfortable"): string {
+export function renderPage(args: AskArgs, token: string, status: PendingStatus, density: "comfortable" | "compact" = "comfortable", settleViewMs = 8000): string {
   const pending = status === "pending"
   const blocksHtml = dedupeOptionCards(args).map(renderBlock).join("\n")
   const inputHtml = pending ? `<div id="input-region">${renderInputRegion(args)}</div>` : ""
@@ -35,12 +35,18 @@ ${subtitle}
 <div class="blocks">${blocksHtml}</div>
 ${inputHtml}
 ${actionsHtml}
+<section class="settle" id="settle-view" hidden role="status" aria-live="polite">
+  <h2 id="settle-title">Answer recorded</h2>
+  <p class="settle-summary" id="settle-summary"></p>
+  <p class="settle-link">Permalink to this answer:<code id="settle-permalink"></code></p>
+  <button type="button" class="btn-secondary" id="btn-close">Close</button>
+</section>
 <div class="status" id="status-box" role="status" aria-live="polite">
   <div class="spinner" id="status-spinner"></div><span id="status-msg"></span>
 </div>
 </main>
 </div>
-<script>${clientScript(args)}</script>
+<script>${clientScript(args, settleViewMs)}</script>
 </body>
 </html>`
 }

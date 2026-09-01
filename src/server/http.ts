@@ -92,7 +92,7 @@ async function handleMcpEndpoint(deps: HttpDeps, req: IncomingMessage, res: Serv
 function handleFormPage(deps: HttpDeps, token: string, res: ServerResponse): void {
   const entry = deps.store.get(token)
   if (!entry) return sendHtml(res, 404, renderGonePage())
-  const html = renderPage(entry.args, token, entry.status, entry.args.options?.density ?? "comfortable")
+  const html = renderPage(entry.args, token, entry.status, entry.args.options?.density ?? "comfortable", deps.config.settleViewMs)
   void deps.artifacts.saveRender(token, html)
   sendHtml(res, 200, html)
 }

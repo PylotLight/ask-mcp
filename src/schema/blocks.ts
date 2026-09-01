@@ -49,6 +49,11 @@ export const infoBlockSchema = z.discriminatedUnion("type", [
       message: "every table row must have the same number of cells as headers",
     }),
   z.object({
+    type: z.literal("diff"),
+    path: z.string().min(1).max(200).optional(),
+    diff: z.string().min(1).max(20_000),
+  }),
+  z.object({
     type: z.literal("divider"),
   }),
 ])

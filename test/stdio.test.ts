@@ -91,6 +91,14 @@ describe("stdio transport", () => {
     const tools = await nextMessage((m) => m.id === 2)
     const names = tools.result.tools.map((t: { name: string }) => t.name).sort()
     expect(names).toEqual(["ask", "ask_templates"])
+    const ask = tools.result.tools.find((t: { name: string }) => t.name === "ask")
+    expect(ask.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false })
+
+    send({ jsonrpc: "2.0", id: 22, method: "tools/call", params: { name: "ask", arguments: { title: "Preview", input: { type: "approve" }, dryRun: true } } })
+    const dry = await nextMessage((m) => m.id === 22)
+    expect(dry.result.structuredContent.dryRun).toBe(true)
+    expect(dry.result.structuredContent.ok).toBe(true)
+    expect(dry.result.content[0].text).toContain("Dry run succeeded")
 
     send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "ask_templates", arguments: {} } })
     const call = await nextMessage((m) => m.id === 3)

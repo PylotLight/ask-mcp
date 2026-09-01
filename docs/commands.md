@@ -35,6 +35,7 @@ curl -sS -X POST http://127.0.0.1:8787/api/ask \
 ```
 
 - **Blocks** until the user answers, cancels, or the ask times out; responds with the result JSON (`{action, optionId?, note?, …}`).
+- `"dryRun": true` skips the blocking part entirely: the request is validated, rendered, and archived (`spec.json` + `render.html`), and the response is `{dryRun: true, ok: true, token, renderPath}` — no pending ask is created and no browser opens.
 - The form URL opens in the browser automatically (respecting `openBrowser` config).
 - If `--auth-token` is set, send `Authorization: Bearer …` (same as `/mcp`).
 - `GET /api/templates` lists `{id, title, description}` for every installed template.

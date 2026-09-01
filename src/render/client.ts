@@ -1,7 +1,7 @@
 import { esc } from "./escape.js"
 import type { AskArgs } from "../schema/index.js"
 
-export function clientScript(args: AskArgs): string {
+export function clientScript(args: AskArgs, settleViewMs = 8000): string {
   const inputType = args.input.type
   const noteRequired = inputType === "approve" ? args.input.noteRequired ?? "never" : "never"
   const json = (v: unknown): string => JSON.stringify(v).replace(/</g, "\\u003c")
@@ -11,12 +11,14 @@ export function clientScript(args: AskArgs): string {
     token: document.body.dataset.token,
     initialStatus: document.body.dataset.status,
     inputType: ${json(inputType)},
-    noteRequired: ${json(noteRequired)}
+    noteRequired: ${json(noteRequired)},
+    settleViewMs: ${json(settleViewMs)}
   };
   var $ = function (id) { return document.getElementById(id); };
   var statusBox = $("status-box"), statusMsg = $("status-msg");
   var busy = false;
   var es = null;
+  var lastResult = null;
 
   function setStatus(kind, msg, spinner) {
     statusBox.className = "status show" + (kind === "done" ? " done" : kind === "err" ? " err" : "");
@@ -26,7 +28,9 @@ export function clientScript(args: AskArgs): string {
 
   function lockUi() {
     document.body.classList.add("terminal");
-    document.querySelectorAll("button, input, textarea, select").forEach(function (el) { el.disabled = true; });
+    document.querySelectorAll("button, input, textarea, select").forEach(function (el) {
+      if (el.id !== "btn-close") el.disabled = true;
+    });
   }
 
   function tryClose() {
@@ -34,24 +38,60 @@ export function clientScript(args: AskArgs): string {
     window.close();
   }
 
-  function terminal(kind, msg) {
+  function clip(text, max) {
+    var clean = String(text).replace(/\\s+/g, " ").trim();
+    return clean.length > max ? clean.slice(0, max - 1) + "…" : clean;
+  }
+
+  function describeResult(r) {
+    try {
+      if (!r) return "";
+      if (r.action === "approve") return "Approved." + (r.note ? " Note recorded: " + clip(r.note, 200) : "");
+      if (r.action === "reject") return "Rejected." + (r.note ? " Note recorded: " + clip(r.note, 200) : "");
+      if (r.action === "choose") {
+        var ids = r.optionIds || (r.optionId ? [r.optionId] : []);
+        var labels = ids.map(function (id) {
+          if (id === "__other__") return "Other: " + (r.otherText ? clip(r.otherText, 120) : "(empty)");
+          var el = document.querySelector('input[name="choice"][value="' + id + '"]');
+          var title = el && el.closest(".choice") && el.closest(".choice").querySelector(".choice-title");
+          return title ? title.textContent.trim() : id;
+        });
+        return "Chose " + labels.join(", ") + ".";
+      }
+      if (r.action === "submit" && r.value !== undefined) return "Answer: " + clip(r.value, 300);
+      if (r.action === "submit" && r.values) {
+        var pairs = Object.keys(r.values).map(function (k) { return k + ": " + clip(r.values[k], 80); });
+        return "Submitted " + (pairs.length ? pairs.join(" · ") : "(empty form)");
+      }
+      return "";
+    } catch (e) { return ""; }
+  }
+
+  function settle(kind, title, summary) {
     if (document.body.classList.contains("terminal")) return;
     lockUi();
-    setStatus(kind, msg, false);
-    setTimeout(tryClose, 600);
+    var view = $("settle-view");
+    view.classList.toggle("err", kind === "err");
+    $("settle-title").textContent = title;
+    $("settle-summary").textContent = summary || "";
+    $("settle-permalink").textContent = window.location.href;
+    view.hidden = false;
+    statusBox.className = "status";
+    statusMsg.textContent = "";
+    if (CFG.settleViewMs > 0) setTimeout(tryClose, CFG.settleViewMs);
   }
 
   function showResultState(status) {
     if (status === "consumed") {
-      terminal("done", "✓ Answer delivered — you can close this tab.");
+      settle("done", "Answer recorded", describeResult(lastResult) || "Your answer was delivered to the agent. Safe to close this tab.");
     } else if (status === "submitted") {
       setStatus("", "Answer sent — waiting for the agent to pick it up…", true);
-      document.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      document.querySelectorAll("button").forEach(function (b) { if (b.id !== "btn-close") b.disabled = true; });
       listen();
     } else if (status === "expired") {
-      terminal("err", "This question expired without an answer. Safe to close this tab.");
+      settle("err", "This question expired", "No answer was sent. Safe to close this tab.");
     } else if (status === "cancelled") {
-      terminal("err", "Cancelled — nothing was sent. Safe to close this tab.");
+      settle("err", "Cancelled — nothing was sent", "The question was withdrawn. Safe to close this tab.");
     }
   }
 
@@ -154,6 +194,7 @@ export function clientScript(args: AskArgs): string {
       if (!res.ok) return res.json().then(function (e) { throw new Error(e.error || "submit failed"); });
       return res.json();
     }).then(function () {
+      lastResult = result;
       setStatus("", "Answer sent — waiting for the agent to pick it up…", true);
       listen();
     }).catch(function (err) {
@@ -200,6 +241,7 @@ export function clientScript(args: AskArgs): string {
       showResultState("cancelled");
     });
   });
+  $("btn-close").addEventListener("click", tryClose);
   document.querySelectorAll("#choice-list .choice input").forEach(function (c) {
     c.addEventListener("change", function () {
       document.querySelectorAll("#choice-list .choice").forEach(function (card) {

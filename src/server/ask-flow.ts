@@ -12,6 +12,8 @@ import {
 import type { ArtifactStore } from "../store/artifacts.js"
 import type { PendingStore } from "../store/pending.js"
 import type { TemplateStore } from "../store/templates.js"
+import { newFormToken, newRequestId } from "../util/tokens.js"
+import { renderPage } from "../render/page.js"
 import { openInBrowser } from "../util/open.js"
 
 export interface AskFlowDeps {
@@ -30,11 +32,17 @@ const lenientAskArgsSchema = z.object({
   options: askOptionsSchema.optional(),
 })
 
-/** Format any thrown schema/validation error as a single readable line. */
+/** Format any thrown schema/validation error as a readable line with zod field paths. */
 export function formatAskError(err: unknown): string {
   if (err && typeof err === "object" && "issues" in err) {
     const issues = (err as { issues: ReadonlyArray<{ path: PropertyKey[]; message: string }> }).issues
-    return issues.map((i) => `${i.path.map(String).join(".")}: ${i.message}`).join("; ")
+    const fmtPath = (path: PropertyKey[]): string =>
+      path
+        .map((p, i) => (typeof p === "number" ? `[${p}]` : i > 0 ? `.${String(p)}` : String(p)))
+        .join("")
+    const lines = issues.slice(0, 3).map((i) => `${fmtPath(i.path) || "(root)"}: ${i.message}`)
+    if (issues.length > 3) lines.push(`(${issues.length - 3} more)`)
+    return lines.join("; ")
   }
   return err instanceof Error ? err.message : String(err)
 }
@@ -59,6 +67,7 @@ export interface RawAskRequest {
   blocks?: unknown
   input?: unknown
   options?: unknown
+  dryRun?: boolean
 }
 
 /**
@@ -96,8 +105,11 @@ export async function bestEffort(fn: () => Promise<void>, what: string): Promise
  * The blocking ask flow shared by the MCP tool and the direct HTTP API:
  * create the pending ask, persist its spec, open the form, wait for the
  * decision, persist the response, and return the structured result.
+ *
+ * `signal` (MCP request cancellation / transport close) and `res` (client
+ * disconnect) both cancel the pending ask instead of leaving it to expire.
  */
-export async function runAsk(deps: AskFlowDeps, args: AskArgs, res?: ServerResponse): Promise<AskResult> {
+export async function runAsk(deps: AskFlowDeps, args: AskArgs, res?: ServerResponse, signal?: AbortSignal): Promise<AskResult> {
   const { entry, promise } = deps.store.create(args)
   const formUrl = `${deps.baseUrl}/f/${entry.token}`
   const abortIfPending = (): void => {
@@ -105,6 +117,10 @@ export async function runAsk(deps: AskFlowDeps, args: AskArgs, res?: ServerRespo
       console.error(`[ask] request aborted by client, cancelling ${entry.token}`)
       deps.store.cancel(entry.token)
     }
+  }
+  if (signal) {
+    if (signal.aborted) abortIfPending()
+    else signal.addEventListener("abort", abortIfPending, { once: true })
   }
   if (res) {
     // res 'close' fires on premature client disconnect AND after normal completion;
@@ -119,4 +135,25 @@ export async function runAsk(deps: AskFlowDeps, args: AskArgs, res?: ServerRespo
   deps.store.markConsumed(entry.token)
   await bestEffort(() => deps.artifacts.saveResponse(entry.token, entry.requestId, result), "response")
   return result
+}
+
+export interface DryRunResult {
+  dryRun: true
+  ok: true
+  token: string
+  renderPath: string
+}
+
+/**
+ * dryRun: validate + render + archive without blocking. No store entry, no
+ * browser, no user prompt — the caller gets the archived preview to self-check
+ * an authored ask before issuing the real one.
+ */
+export async function dryRunAsk(deps: Pick<AskFlowDeps, "artifacts">, args: AskArgs): Promise<DryRunResult> {
+  const token = newFormToken()
+  const requestId = newRequestId()
+  await bestEffort(() => deps.artifacts.saveSpec(token, requestId, args), "spec")
+  const html = renderPage(args, token, "pending")
+  await bestEffort(() => deps.artifacts.saveRender(token, html), "render")
+  return { dryRun: true, ok: true, token, renderPath: deps.artifacts.renderPath(token) }
 }

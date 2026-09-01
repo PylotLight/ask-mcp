@@ -34,6 +34,11 @@ export class ArtifactStore {
     return path.join(this.root, isoDate(date), token)
   }
 
+  /** Where this token's render.html lives (dry-run previews point callers at it). */
+  renderPath(token: string, date = new Date()): string {
+    return path.join(this.dirFor(token, date), "render.html")
+  }
+
   async saveSpec(token: string, requestId: string, args: AskArgs): Promise<void> {
     const dir = this.dirFor(token)
     await mkdir(dir, { recursive: true })

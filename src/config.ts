@@ -14,6 +14,8 @@ export interface Config {
   dataDir: string
   retentionDays: number
   timeoutMs: number
+  /** How long the post-submit settle view stays before the page tries to close itself. 0 disables auto-close. */
+  settleViewMs: number
   surface: SurfaceMode
   authToken?: string
   adminToken?: string
@@ -26,6 +28,7 @@ export interface Config {
 
 const DEFAULT_PORT = 8787
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+const DEFAULT_SETTLE_VIEW_MS = 8000
 
 function loopback(host: string): string {
   return host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host
@@ -63,6 +66,8 @@ Server options:
   --data-dir <dir>     Artifact directory (default: $ASK_MCP_DATA_DIR or ~/.config/ask-mcp)
   --retention-days <n> Prune day-partitioned artifacts older than n days at startup (default: 0 = keep forever)
   --timeout-ms <n>     How long an ask blocks before expiring (default: ${DEFAULT_TIMEOUT_MS}, min 1000)
+  --settle-view-ms <n> How long the post-answer "recorded" view stays before the page closes
+                       (default: ${DEFAULT_SETTLE_VIEW_MS}, 0 = stay open until the user closes it)
   --surface <mode>     auto | apps | browser (default: auto; MCP Apps is deferred)
   --auth-token <t>     Require 'Authorization: Bearer <t>' on MCP endpoint calls
   --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
@@ -83,7 +88,7 @@ function int(value: string, flag: string): number {
 }
 
 /** Raw, unvalidated settings collected from CLI/env/file before precedence merging. */
-type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "surface" | "authToken" | "adminToken" | "noOpen" | "stdio", string | boolean>>
+type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "settleViewMs" | "surface" | "authToken" | "adminToken" | "noOpen" | "stdio", string | boolean>>
 
 const fileSchema = z.object({
   port: z.number().int().optional(),
@@ -92,6 +97,7 @@ const fileSchema = z.object({
   dataDir: z.string().min(1).optional(),
   retentionDays: z.number().int().min(0).optional(),
   timeoutMs: z.number().int().min(1000).optional(),
+  settleViewMs: z.number().int().min(0).optional(),
   surface: z.enum(["auto", "apps", "browser"]).optional(),
   authToken: z.string().min(1).optional(),
   adminToken: z.string().min(1).optional(),
@@ -137,6 +143,7 @@ function envSettings(): RawSettings {
   if (str("ASK_MCP_DATA_DIR")) raw.dataDir = str("ASK_MCP_DATA_DIR")
   if (str("ASK_MCP_RETENTION_DAYS")) raw.retentionDays = str("ASK_MCP_RETENTION_DAYS")
   if (str("ASK_MCP_TIMEOUT_MS")) raw.timeoutMs = str("ASK_MCP_TIMEOUT_MS")
+  if (str("ASK_MCP_SETTLE_VIEW_MS")) raw.settleViewMs = str("ASK_MCP_SETTLE_VIEW_MS")
   if (str("ASK_MCP_SURFACE")) raw.surface = str("ASK_MCP_SURFACE")
   if (str("ASK_MCP_AUTH_TOKEN")) raw.authToken = str("ASK_MCP_AUTH_TOKEN")
   if (str("ASK_MCP_ADMIN_TOKEN")) raw.adminToken = str("ASK_MCP_ADMIN_TOKEN")
@@ -177,6 +184,9 @@ function parseCli(argv: string[]): { settings: RawSettings; configPath?: string;
         break
       case "--timeout-ms":
         settings.timeoutMs = value()
+        break
+      case "--settle-view-ms":
+        settings.settleViewMs = value()
         break
       case "--surface":
         settings.surface = value()
@@ -236,6 +246,7 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
   const host = merged.host ?? "127.0.0.1"
   const retentionDays = resolveInt(merged.retentionDays ?? 0, "--retention-days", 0)!
   const timeoutMs = resolveInt(merged.timeoutMs ?? DEFAULT_TIMEOUT_MS, "--timeout-ms", 1000)!
+  const settleViewMs = resolveInt(merged.settleViewMs ?? DEFAULT_SETTLE_VIEW_MS, "--settle-view-ms", 0)!
   const surface = resolveSurface(merged.surface)
   const stdio = merged.stdio === true
 
@@ -246,6 +257,7 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
     dataDir: merged.dataDir ?? defaultDataDir(),
     retentionDays,
     timeoutMs,
+    settleViewMs,
     surface,
     authToken: merged.authToken,
     adminToken: merged.adminToken ?? merged.authToken,
@@ -267,6 +279,7 @@ function cleanRaw(raw: RawSettings): FileSettings & { stdio?: boolean } {
   assign("dataDir", typeof raw.dataDir === "string" ? raw.dataDir : undefined)
   assign("retentionDays", resolveInt(raw.retentionDays, "--retention-days", 0))
   assign("timeoutMs", resolveInt(raw.timeoutMs, "--timeout-ms", 1000))
+  assign("settleViewMs", resolveInt(raw.settleViewMs, "--settle-view-ms", 0))
   if (raw.surface !== undefined && raw.surface !== false) {
     if (raw.surface === true) throw new Error("surface must be a string")
     out.surface = resolveSurface(raw.surface)

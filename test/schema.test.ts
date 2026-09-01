@@ -60,6 +60,14 @@ describe("askArgsSchema", () => {
     expect(() => askArgsSchema.parse(baseArgs({ blocks }))).toThrow()
   })
 
+  it("accepts a diff block with an optional path and rejects an empty diff", () => {
+    const blocks = [{ type: "diff", path: "src/a.ts", diff: "@@ -1,2 +1,2 @@\n-old\n+new" }]
+    expect(askArgsSchema.parse(baseArgs({ blocks })).blocks).toEqual(blocks)
+    expect(askArgsSchema.parse(baseArgs({ blocks: [{ type: "diff", diff: "+x" }] })).blocks).toHaveLength(1)
+    expect(() => askArgsSchema.parse(baseArgs({ blocks: [{ type: "diff" }] }))).toThrow()
+    expect(() => askArgsSchema.parse(baseArgs({ blocks: [{ type: "diff", diff: "" }] }))).toThrow()
+  })
+
   it("accepts single_choice wired to option_card ids", () => {
     const parsed = askArgsSchema.parse(
       baseArgs({

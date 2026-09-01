@@ -13,7 +13,7 @@ import type { ArtifactStore } from "../store/artifacts.js"
 import type { PendingStore } from "../store/pending.js"
 import type { TemplateStore } from "../store/templates.js"
 import { summarizeResult } from "./summary.js"
-import { formatAskError, resolveAskArgs, runAsk } from "./ask-flow.js"
+import { dryRunAsk, formatAskError, resolveAskArgs, runAsk } from "./ask-flow.js"
 import { VERSION } from "../version.js"
 
 export interface McpDeps {
@@ -68,6 +68,14 @@ export function createMcpServer(deps: McpDeps, res?: ServerResponse): McpServer 
     {
       title: "Ask the user",
       description: ASK_TOOL_DESCRIPTION,
+      annotations: {
+        // The tool blocks on a human and creates a pending interaction — not
+        // read-only, not destructive, and not repeatable with the same effect.
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       // Intentionally lenient vs askArgsSchema: `input.type` may be omitted
       // (inferred server-side) so LLM callers can pass a minimal spec. With a
       // template id, even `title`/`blocks` can be omitted (the template fills them).
@@ -83,14 +91,20 @@ export function createMcpServer(deps: McpDeps, res?: ServerResponse): McpServer 
           .array(infoBlockSchema)
           .max(MAX_BLOCKS)
           .optional()
-          .describe("Info blocks shown to the user before they respond (context, options, tables, steps)"),
+          .describe("Info blocks shown to the user before they respond (context, options, tables, steps, diffs)"),
         input: lenientInputSpecSchema.describe(
           "The single primary input the user must respond with. `type` may be omitted: it is inferred from the other fields (options→single_choice, schema→form, text fields→text, otherwise approve).",
         ),
         options: askOptionsSchema.optional().describe("Presentation options (density, cancel button, locale)"),
+        dryRun: z
+          .boolean()
+          .optional()
+          .describe(
+            "Validate and render the ask without delivering it: archives the spec and a standalone preview HTML, then returns immediately (no blocking, no browser, no user prompt). Use this to self-check an authored ask before the real call.",
+          ),
       },
     },
-    async (args) => {
+    async (args, extra) => {
       let askArgs
       try {
         askArgs = await resolveAskArgs(args, deps.templates)
@@ -100,7 +114,19 @@ export function createMcpServer(deps: McpDeps, res?: ServerResponse): McpServer 
           content: [{ type: "text", text: `Invalid ask arguments: ${formatAskError(err)}` }],
         }
       }
-      const result: AskResult = await runAsk(deps, askArgs, res)
+      if (args.dryRun === true) {
+        const preview = await dryRunAsk(deps, askArgs)
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Dry run succeeded — the ask validated and rendered. Preview saved to ${preview.renderPath} (standalone HTML; open it in a browser to inspect the form). No ask was created and nothing was delivered to the user; re-call without dryRun to send it.`,
+            },
+          ],
+          structuredContent: preview as unknown as Record<string, unknown>,
+        }
+      }
+      const result: AskResult = await runAsk(deps, askArgs, res, extra.signal)
       return {
         content: [{ type: "text", text: summarizeResult(askArgs, result) }],
         structuredContent: result as unknown as Record<string, unknown>,
@@ -115,6 +141,7 @@ export function createMcpServer(deps: McpDeps, res?: ServerResponse): McpServer 
       description: `List the reusable ask templates ("recipes") available on this ask-mcp server.
 
 Each template is a hand-tuned, validated ask spec (title, blocks, input kind). Pass the id to the ask tool's \`template\` field and override only the parts that differ (e.g. fill in the change summary). Use this when a recurring decision (deploy gates, sign-offs, region picks) should look consistent instead of being re-authored per call.`,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {},
     },
     async () => {
