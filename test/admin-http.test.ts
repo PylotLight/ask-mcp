@@ -18,10 +18,12 @@ function makeDeps(opts: { adminToken?: string; authToken?: string } = {}): { dep
     dataDir: dir,
     retentionDays: 0,
     timeoutMs: 60_000,
+    settleViewMs: 8000,
     surface: "auto",
     authToken: opts.authToken,
     adminToken: opts.adminToken,
     openBrowser: false,
+    stdio: false,
     configPath: path.join(dir, "config.json"),
   }
   config.baseUrl = `http://127.0.0.1:${config.port}`

@@ -104,12 +104,13 @@ If the port is busy (e.g. ask-mcp is already running), it says so instead of cra
 
 - **Five input kinds** — `approve`, `single_choice`, `multi_choice`, `text`, `form`. The `type` field is optional and inferred from the fields you provide (`multi_choice` is the one exception — set it explicitly).
 - **Other escape hatch** — choice prompts accept `other: { placeholder }`, rendering a final pseudo-option with a free-text field: typing auto-selects it, an empty Other blocks submit, and the answer arrives as `otherText`.
-- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, dividers.
-- **Blocking semantics** — the MCP call stays open until the user responds; results come back as `structuredContent` plus a human-readable summary.
+- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, diffs (unified view with per-line tints and +/- stats), dividers.
+- **Blocking semantics** — the MCP call stays open until the user responds; results come back as `structuredContent` plus a human-readable summary. If the client cancels the call (MCP `notifications/cancelled`, abort, disconnect), the pending ask is cancelled too instead of lingering until timeout.
+- **Dry run** — pass `dryRun: true` to validate + render + archive an ask without delivering it: the tool returns immediately with the archived preview path, no blocking, no browser, no user prompt. Use it to self-check an authored form before the real call.
 - **Templates** — recurring asks saved as named, validated recipes (`deploy-confirm`, your own); the agent discovers them with `ask_templates` and invokes by id.
 - **Admin panel** — token-gated dashboard: live pending asks with cancel, full history browser, config editor, template CRUD.
 - **Artifacts** — every ask is persisted (`spec.json`, `response.json`, `render.html`) under `~/.config/ask-mcp/YYYY-MM-DD/<token>/`, with optional retention pruning.
-- **Live pages** — forms track status over SSE: submitted → delivered, cancelled, expired; the page locks and tries to dismiss itself when done.
+- **Live pages** — forms track status over SSE: submitted → delivered, cancelled, expired. After answering, a settle view shows exactly what was recorded plus a permalink (auto-close delay: `--settle-view-ms`, default 8 s; `0` keeps the page open until dismissed).
 - **HTTP twin** — `POST /api/ask` + `GET /api/templates` give scripts and CI the same pipeline as the MCP tool (see [docs/commands.md](docs/commands.md)).
 - **Safe by construction** — HTML-escaped rendering, strict zod schemas, per-ask 128-bit capability tokens, strict CSP, loopback-by-default binding.
 
@@ -204,6 +205,7 @@ ask-mcp install-commands [--dir <target>] [--force]
   --data-dir <dir>     Artifact directory (default: ~/.config/ask-mcp)
   --retention-days <n> Prune artifacts older than n days at startup + every 6 h (default: 0 = forever)
   --timeout-ms <n>     Ask blocking timeout (default: 600000, min 1000)
+  --settle-view-ms <n> Post-answer settle view auto-close delay (default: 8000, 0 = stay open)
   --surface <mode>     auto | apps | browser (MCP Apps is deferred; see docs/)
   --auth-token <t>     Require Bearer auth on the MCP endpoint
   --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
@@ -258,4 +260,4 @@ Artifacts land in `--data-dir` (default `~/.config/ask-mcp`) as `YYYY-MM-DD/<tok
 
 ## Roadmap
 
-The admin panel (live ask monitor, history, config, templates) and the `/ask-admin` slash command are implemented — see [docs/admin.md](docs/admin.md) and [docs/commands.md](docs/commands.md). The broader exploration (re-asks, webhooks, richer interaction blocks) lives in [docs/admin-roadmap.md](docs/admin-roadmap.md). MCP Apps (rendering the ask inside the MCP client itself) is designed but intentionally deferred — see [docs/surface-a-mcp-apps.md](docs/surface-a-mcp-apps.md).
+The admin panel (live ask monitor, history, config, templates) and the `/ask-admin` slash command are implemented — see [docs/admin.md](docs/admin.md) and [docs/commands.md](docs/commands.md). The broader exploration (re-asks, webhooks, richer interaction blocks) lives in [docs/admin-roadmap.md](docs/admin-roadmap.md), and the full brainstorm inventory of possible expansion features — inputs, blocks, automation, analytics, channels, and beyond — is in [docs/feature-ideas.md](docs/feature-ideas.md). MCP Apps (rendering the ask inside the MCP client itself) is designed but intentionally deferred — see [docs/surface-a-mcp-apps.md](docs/surface-a-mcp-apps.md).

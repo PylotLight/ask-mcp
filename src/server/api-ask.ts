@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { AdminDeps } from "./admin.js"
 import { bearerAuthorized } from "./admin.js"
-import { formatAskError, resolveAskArgs, runAsk, type AskFlowDeps, type RawAskRequest } from "./ask-flow.js"
+import { dryRunAsk, formatAskError, resolveAskArgs, runAsk, type AskFlowDeps, type RawAskRequest } from "./ask-flow.js"
 import { readBody, sendJson } from "./http-util.js"
 
 /**
@@ -35,6 +35,9 @@ export async function handleApiAsk(deps: AdminDeps, req: IncomingMessage, res: S
     artifacts: deps.artifacts,
     baseUrl: deps.config.baseUrl,
     openBrowser: deps.config.openBrowser,
+  }
+  if (body.dryRun === true) {
+    return sendJson(res, 200, await dryRunAsk(flow, askArgs))
   }
   const result = await runAsk(flow, askArgs, res)
   sendJson(res, 200, result)

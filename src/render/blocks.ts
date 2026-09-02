@@ -27,6 +27,35 @@ export function renderBlock(block: InfoBlock): string {
       const rows = block.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")
       return `<div class="table-scroll"><table>${head}${rows}</table></div>`
     }
+    case "diff": {
+      let added = 0
+      let removed = 0
+      const rows = block.diff
+        .split("\n")
+        .map((line) => {
+          const cls =
+            line.startsWith("@@")
+              ? "hunk"
+              : line.startsWith("diff --git") ||
+                  line.startsWith("index ") ||
+                  line.startsWith("old mode ") ||
+                  line.startsWith("new mode ") ||
+                  line.startsWith("rename ") ||
+                  line.startsWith("--- ") ||
+                  line.startsWith("+++ ")
+                ? "meta"
+                : line.startsWith("+")
+                  ? (added++, "add")
+                  : line.startsWith("-")
+                    ? (removed++, "del")
+                    : "ctx"
+          return `<span class="dl ${cls}">${esc(line) || "&nbsp;"}</span>`
+        })
+        .join("")
+      const name = block.path ?? "diff"
+      const head = `<div class="diff-head"><code>${esc(name)}</code><span class="diff-stats"><em class="add">+${added}</em> <em class="del">&minus;${removed}</em></span></div>`
+      return `<div class="diff-block">${head}<div class="diff-body">${rows}</div></div>`
+    }
     case "divider":
       return "<hr>"
   }

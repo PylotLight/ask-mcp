@@ -6,7 +6,7 @@ Dev guide for coding agents working in this repo. Read this first; only open sou
 
 `@pylotlight/ask-mcp` — a local MCP server whose one tool, `ask`, blocks the calling agent until the user answers an HTML form in their browser. Same primitives are exposed over plain HTTP (`POST /api/ask`) and via an admin panel (`/admin`), so the interaction pipeline is shared, not duplicated. ESM TypeScript, zod v4, MCP SDK, Bun or Node >= 22, vitest.
 
-Docs: `README.md` (usage) · `docs/admin.md` (panel + config file + admin API) · `docs/commands.md` (templates, /api/ask, /ask-admin) · `docs/admin-roadmap.md` (future ideas) · `docs/surface-a-mcp-apps.md` (deferred MCP Apps design).
+Docs: `README.md` (usage) · `docs/admin.md` (panel + config file + admin API) · `docs/commands.md` (templates, /api/ask, /ask-admin) · `docs/admin-roadmap.md` (phased next steps) · `docs/feature-ideas.md` (giant expansion brainstorm — start here when picking new features) · `docs/surface-a-mcp-apps.md` (deferred MCP Apps design).
 
 ## Commands
 
