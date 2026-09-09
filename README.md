@@ -47,7 +47,7 @@ npx -y @pylotlight/ask-mcp            # same, via npm
 npm i -g @pylotlight/ask-mcp          # or install globally → `ask-mcp`
 ```
 
-Requires Node ≥ 22 or Bun ≥ 1.2. There are two ways to connect it to your MCP client — pick one:
+Requires Node ≥ 22 or Bun ≥ 1.2. Note: plain `bunx` runs the bin under Node (via the `#!/usr/bin/env node` shebang); add `--bun` to force the Bun runtime (`bunx --bun -y @pylotlight/ask-mcp --stdio`). There are two ways to connect it to your MCP client — pick one:
 
 ### Option A: client-spawned (npx style)
 

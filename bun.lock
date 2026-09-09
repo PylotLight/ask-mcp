@@ -4,14 +4,12 @@
   "workspaces": {
     "": {
       "name": "ask-mcp",
-      "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.30.0",
-        "zod": "^4.4.3",
-      },
       "devDependencies": {
+        "@modelcontextprotocol/sdk": "^1.30.0",
         "@types/node": "^26.0.0",
         "typescript": "^5.9.0",
         "vitest": "^4.0.0",
+        "zod": "^4.4.3",
       },
     },
   },

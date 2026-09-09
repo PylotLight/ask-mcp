@@ -12,7 +12,7 @@ Docs: `README.md` (usage) · `docs/admin.md` (panel + config file + admin API) �
 
 ```bash
 bun run typecheck   # tsc --noEmit — run before declaring done
-bun run build       # tsc emit → dist/
+bun run build       # bun build --target=node → dist/index.js (single-file bundle, zero runtime deps)
 bun run test        # vitest. NOT `bun test` — bun's runner fails on a pre-existing vitest .resolves test
 bun src/index.ts [flags]   # run the server from source
 ```
@@ -50,6 +50,7 @@ Request flow: caller → validate lenient args → resolve template (explicit fi
 - **Single-shot store.** Every pending ask settles exactly once (submitted/cancelled/expired/consumed). Don't add code paths that mutate a terminal entry.
 - **Artifact persistence is best-effort.** Disk failures log and continue; a live interaction must never break on write errors (`bestEffort()` in ask-flow.ts).
 - **No framework in render/**. Plain DOM + the design tokens in `src/render/styles.ts`. New UI reuses `pageStyles()` and existing block renderers.
+- **Self-contained bundle.** `dist/index.js` is a single-file `bun build --target=node` bundle with zero runtime deps (zod + SDK live in devDependencies for tests/typecheck only). Never add a runtime `dependencies` entry — ship it bundled instead.
 - **No comments in code** unless the user asks; explain in commit messages or docs instead.
 - Auth model: `authToken` guards `/mcp` + `/api/*` (Bearer); `adminToken` (falls back to authToken) unlocks `/admin` via hashed session cookie. Tokens are never echoed back by APIs and never editable through the panel.
 - Config precedence CLI > env > file > defaults; `timeoutMs`/`retentionDays` apply live, `port`/`host`/`baseUrl`/`dataDir`/`surface` need restart.
