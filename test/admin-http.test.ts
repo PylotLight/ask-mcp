@@ -167,6 +167,33 @@ describe("admin panel HTTP surface", () => {
       expect(cfgGet2.values.timeoutMs).toBe(45000)
       expect(deps.config.timeoutMs).toBe(45000)
 
+      // Browser: set applies live, clearing resets to the system default.
+      const browserPut = (await (await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ browser: "Google Chrome" }) })).json()) as { appliedRuntime: string[] }
+      expect(browserPut.appliedRuntime).toContain("browser")
+      expect(deps.config.browser).toBe("Google Chrome")
+      const browserGet = (await (await fetch(`${url}/admin/api/config`, { headers })).json()) as { values: { browser: string } }
+      expect(browserGet.values.browser).toBe("Google Chrome")
+      await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ browser: "" }) })
+      expect(deps.config.browser).toBeUndefined()
+
+      // Theme: set applies live to subsequently rendered forms.
+      const themePut = (await (await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ theme: "starfield" }) })).json()) as { appliedRuntime: string[] }
+      expect(themePut.appliedRuntime).toContain("theme")
+      expect(deps.config.theme).toBe("starfield")
+      const themeGet = (await (await fetch(`${url}/admin/api/config`, { headers })).json()) as { values: { theme: string } }
+      expect(themeGet.values.theme).toBe("starfield")
+      const themeBad = await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ theme: "aurora" }) })
+      expect(themeBad.status).toBe(400)
+
+      // Theme tuning: star count + motion apply live.
+      const tunePut = (await (await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ themeStars: "2500", themeMotion: "subtle" }) })).json()) as { appliedRuntime: string[] }
+      expect(tunePut.appliedRuntime).toContain("themeStars")
+      expect(tunePut.appliedRuntime).toContain("themeMotion")
+      expect(deps.config.themeStars).toBe(2500)
+      expect(deps.config.themeMotion).toBe("subtle")
+      const tuneBad = await fetch(`${url}/admin/api/config`, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ themeStars: 99999 }) })
+      expect(tuneBad.status).toBe(400)
+
       // Templates: list seeds, create, delete.
       const list = (await (await fetch(`${url}/admin/api/templates`, { headers })).json()) as { templates: Array<{ id: string }> }
       expect(list.templates.map((t) => t.id)).toContain("deploy-confirm")

@@ -11,8 +11,9 @@ import { PendingStore } from "../src/store/pending.js"
 import { ArtifactStore } from "../src/store/artifacts.js"
 import { TemplateStore } from "../src/store/templates.js"
 import { dryRunAsk, formatAskError, normalizeAskArgs, runAsk } from "../src/server/ask-flow.js"
-import { renderPage } from "../src/render/page.js"
+import { renderPage, eyebrowFor } from "../src/render/page.js"
 import { renderBlock } from "../src/render/blocks.js"
+import { renderActions, renderInputRegion } from "../src/render/input.js"
 
 const askArgs = normalizeAskArgs({
   title: "Deploy?",
@@ -159,6 +160,75 @@ describe("render additions", () => {
     expect(html).toContain('id="settle-view" hidden')
     expect(html).toContain('id="settle-permalink"')
     expect(html).toContain('id="btn-close"')
+    expect(html).toContain('id="btn-copy"')
+    expect(html).toContain('id="btn-stay"')
+    expect(html).toContain('id="settle-countdown"')
+    expect(html).toContain('id="settle-progress"')
     expect(html).toContain("settleViewMs: 5000")
+  })
+
+  it("falls back to a manual-close hint when the tab refuses to close", () => {
+    const html = renderPage(askArgs, "tokentokentoken", "pending")
+    expect(html).toContain("to close this tab")
+    expect(html).toContain("document.title")
+  })
+})
+
+describe("hero form", () => {
+  const choiceArgs = (n: number, other = false) =>
+    normalizeAskArgs({
+      title: "Pick?",
+      blocks: [],
+      input: {
+        type: "single_choice",
+        options: Array.from({ length: n }, (_, i) => ({ id: `o${i}`, label: `O${i}` })),
+        ...(other ? { other: {} } : {}),
+      },
+    })
+
+  it("renders an eyebrow describing the answer needed", () => {
+    expect(eyebrowFor(askArgs)).toBe("Approval needed")
+    expect(eyebrowFor(choiceArgs(3))).toBe("Pick 1 of 3")
+    expect(eyebrowFor(choiceArgs(3, true))).toBe("Pick 1 of 4")
+    expect(eyebrowFor(normalizeAskArgs({ title: "T", blocks: [], input: { type: "text" } }))).toBe("Your answer needed")
+    const html = renderPage(choiceArgs(2), "tokentokentoken", "pending")
+    expect(html).toContain('<p class="eyebrow">')
+    expect(html).toContain("Pick 1 of 2")
+  })
+
+  it("numbers choice badges and grids wide option sets", () => {
+    const few = renderInputRegion(choiceArgs(2))
+    expect(few).toContain('class="choice-num"')
+    expect(few).not.toContain("choice-grid")
+    const many = renderInputRegion(choiceArgs(4))
+    expect(many).toContain("choice-list choice-grid")
+    const other = renderInputRegion(choiceArgs(3, true))
+    expect(other).toContain("choice-list choice-grid")
+    expect(other).toContain("choice-num-other")
+  })
+
+  it("hints keyboard shortcuts in the actions row", () => {
+    const html = renderActions(choiceArgs(3), true)
+    expect(html).toContain("kbd-hint")
+    expect(html).toContain("<kbd>1</kbd>–<kbd>3</kbd>")
+  })
+
+  it("applies the theme to the page and falls back to minimal", () => {
+    const html = renderPage(choiceArgs(2), "tokentokentoken", "pending", "comfortable", 3000, "starfield")
+    expect(html).toContain('data-theme="starfield"')
+    expect(html).toContain('class="bg-stars"')
+    expect(html).toContain('data-stars="1000"')
+    expect(html).toContain('data-motion="full"')
+    const fallback = renderPage(choiceArgs(2), "tokentokentoken", "pending", "comfortable", 3000, "aurora" as never)
+    expect(fallback).toContain('data-theme="minimal"')
+  })
+
+  it("wires theme options with clamping and motion fallback", () => {
+    const html = renderPage(choiceArgs(2), "tokentokentoken", "pending", "comfortable", 3000, "starfield", { stars: 2500, motion: "subtle" })
+    expect(html).toContain('data-stars="2500"')
+    expect(html).toContain('data-motion="subtle"')
+    const clamped = renderPage(choiceArgs(2), "tokentokentoken", "pending", "comfortable", 3000, "starfield", { stars: 99999, motion: "wild" as never })
+    expect(clamped).toContain('data-stars="5000"')
+    expect(clamped).toContain('data-motion="full"')
   })
 })

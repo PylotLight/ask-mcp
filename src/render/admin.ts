@@ -228,11 +228,58 @@ export function renderAdminPage(): string {
       <div class="field full"><label for="cfg-datadir">Data dir</label><input id="cfg-datadir" name="dataDir"></div>
       <div class="field"><label for="cfg-retention">Retention days (0 = forever)</label><input id="cfg-retention" name="retentionDays" inputmode="numeric"></div>
       <div class="field"><label for="cfg-timeout">Ask timeout (ms)</label><input id="cfg-timeout" name="timeoutMs" inputmode="numeric"></div>
+      <div class="field"><label for="cfg-browser">Browser</label>
+        <select id="cfg-browser" name="browser">
+          <option value="">System default</option>
+          <optgroup label="macOS">
+            <option value="Google Chrome">Google Chrome</option>
+            <option value="Microsoft Edge">Microsoft Edge</option>
+            <option value="Arc">Arc</option>
+            <option value="Orion">Orion</option>
+            <option value="Firefox">Firefox</option>
+            <option value="Safari">Safari</option>
+            <option value="Brave Browser">Brave</option>
+            <option value="Vivaldi">Vivaldi</option>
+            <option value="Dia">Dia</option>
+          </optgroup>
+          <optgroup label="Windows">
+            <option value="msedge">Microsoft Edge (msedge)</option>
+            <option value="chrome">Google Chrome (chrome)</option>
+            <option value="firefox">Firefox (firefox)</option>
+          </optgroup>
+          <optgroup label="Linux">
+            <option value="google-chrome">Google Chrome (google-chrome)</option>
+            <option value="microsoft-edge">Microsoft Edge (microsoft-edge)</option>
+            <option value="firefox">Firefox (firefox)</option>
+            <option value="chromium">Chromium (chromium)</option>
+          </optgroup>
+          <option value="__custom__">Custom…</option>
+        </select>
+      </div>
+      <div class="field" id="cfg-browser-custom-wrap" hidden><label for="cfg-browser-custom">Custom browser</label><input id="cfg-browser-custom" name="browserCustom" placeholder="App name, alias, command, or exe path" autocomplete="off"></div>
+      <div class="field full"><p class="muted" style="margin:0">Pick the browser forms pop in — empty Custom means the system default. Applies live. Per-install via <code>--browser</code> or <code>ASK_MCP_BROWSER</code>, so a personal IDE can pop a personal browser while work tools keep the default.</p></div>
+      <div class="field"><label for="cfg-settle">Settle auto-close (ms, 0 = stay open)</label><input id="cfg-settle" name="settleViewMs" inputmode="numeric"></div>
       <div class="field"><label for="cfg-surface">Surface</label>
         <select id="cfg-surface" name="surface">
           <option value="auto">auto</option>
           <option value="apps">apps</option>
           <option value="browser">browser</option>
+        </select>
+      </div>
+      <div class="field"><label for="cfg-theme">Form background</label>
+        <select id="cfg-theme" name="theme">
+          <option value="minimal">Minimal</option>
+          <option value="starfield">Starfield</option>
+          <option value="dots">Dot grid</option>
+          <option value="contour">Contour lines</option>
+        </select>
+      </div>
+      <div class="field"><label for="cfg-theme-stars">Stars (0–5000)</label><input id="cfg-theme-stars" name="themeStars" inputmode="numeric"></div>
+      <div class="field"><label for="cfg-theme-motion">Theme motion</label>
+        <select id="cfg-theme-motion" name="themeMotion">
+          <option value="full">Full</option>
+          <option value="subtle">Subtle (twinkle only)</option>
+          <option value="still">Still</option>
         </select>
       </div>
       <div class="form-foot full">

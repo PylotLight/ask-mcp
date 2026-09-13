@@ -1,7 +1,7 @@
 import { esc } from "./escape.js"
 import type { AskArgs } from "../schema/index.js"
 
-export function clientScript(args: AskArgs, settleViewMs = 8000): string {
+export function clientScript(args: AskArgs, settleViewMs = 3000): string {
   const inputType = args.input.type
   const noteRequired = inputType === "approve" ? args.input.noteRequired ?? "never" : "never"
   const json = (v: unknown): string => JSON.stringify(v).replace(/</g, "\\u003c")
@@ -34,13 +34,40 @@ export function clientScript(args: AskArgs, settleViewMs = 8000): string {
   }
 
   function tryClose() {
-    window.open("", "_self");
-    window.close();
+    // Browsers only let scripts close windows they opened; the OS-opened form
+    // tab usually refuses. Try anyway, then fall through to the manual hint.
+    try { window.open("", "_self"); } catch (e) {}
+    try { window.close(); } catch (e) {}
+    setTimeout(function () {
+      closeRefused = true;
+      try { document.title = "✓ " + document.title.replace(/^✓ /, ""); } catch (e2) {}
+      var mod = (navigator.userAgent || "").indexOf("Mac") !== -1 ? "⌘W" : "Ctrl+W";
+      setStatus("", "Done — press " + mod + " to close this tab.", false);
+    }, 300);
   }
+  // If the browser refused, retry on the next interaction — some contexts grant it then.
+  var closeRefused = false;
+  window.addEventListener("click", function () { if (closeRefused) tryClose(); });
+  window.addEventListener("keydown", function () { if (closeRefused) tryClose(); });
+
+  var settleTimer = null, countdownTimer = null;
 
   function clip(text, max) {
-    var clean = String(text).replace(/\\s+/g, " ").trim();
+    var clean = String(text).replace(/\s+/g, " ").trim();
     return clean.length > max ? clean.slice(0, max - 1) + "…" : clean;
+  }
+
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) {}
   }
 
   function describeResult(r) {
@@ -78,7 +105,30 @@ export function clientScript(args: AskArgs, settleViewMs = 8000): string {
     view.hidden = false;
     statusBox.className = "status";
     statusMsg.textContent = "";
-    if (CFG.settleViewMs > 0) setTimeout(tryClose, CFG.settleViewMs);
+    try { view.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+    var closeBtn = $("btn-close");
+    if (closeBtn) { try { closeBtn.focus({ preventScroll: true }); } catch (e) { try { closeBtn.focus(); } catch (e2) {} } }
+    var countdown = $("settle-countdown"), secs = $("settle-secs"), fill = $("settle-progress"), stay = $("btn-stay");
+    if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    if (CFG.settleViewMs > 0) {
+      var total = CFG.settleViewMs;
+      var deadline = Date.now() + total;
+      countdown.hidden = false;
+      stay.hidden = false;
+      var tick = function () {
+        var left = Math.max(0, deadline - Date.now());
+        secs.textContent = String(Math.max(1, Math.ceil(left / 1000)));
+        if (fill) fill.style.width = (100 * left / total).toFixed(1) + "%";
+        if (left <= 0 && countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      };
+      tick();
+      countdownTimer = setInterval(tick, 100);
+      settleTimer = setTimeout(tryClose, total);
+    } else if (countdown) {
+      countdown.hidden = true;
+      if (stay) stay.hidden = true;
+    }
   }
 
   function showResultState(status) {
@@ -242,6 +292,26 @@ export function clientScript(args: AskArgs, settleViewMs = 8000): string {
     });
   });
   $("btn-close").addEventListener("click", tryClose);
+  var stayBtn = $("btn-stay");
+  if (stayBtn) stayBtn.addEventListener("click", function () {
+    closeRefused = false;
+    if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    var cd = $("settle-countdown");
+    if (cd) cd.hidden = true;
+    stayBtn.hidden = true;
+  });
+  var copyBtn = $("btn-copy");
+  if (copyBtn) copyBtn.addEventListener("click", function () {
+    var done = function () {
+      copyBtn.textContent = "Copied";
+      setTimeout(function () { copyBtn.textContent = "Copy"; }, 1500);
+    };
+    var href = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(href).then(done, function () { fallbackCopy(href); done(); });
+    } else { fallbackCopy(href); done(); }
+  });
   document.querySelectorAll("#choice-list .choice input").forEach(function (c) {
     c.addEventListener("change", function () {
       document.querySelectorAll("#choice-list .choice").forEach(function (card) {
@@ -276,6 +346,78 @@ export function clientScript(args: AskArgs, settleViewMs = 8000): string {
       }
     });
   }
+
+  /* Starfield: seeded box-shadow sky sized to the viewport, so density is a setting, not baked CSS. */
+  function starRng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function paintStars() {
+    if (document.body.dataset.theme !== "starfield") return;
+    var total = Math.max(0, Math.min(5000, parseInt(document.body.dataset.stars || "0", 10) || 0));
+    var dimEl = document.querySelector(".bg-stars"), brightEl = document.querySelector(".bg-stars-bright");
+    if (!dimEl || !brightEl) return;
+    if (!total) { dimEl.style.boxShadow = "none"; brightEl.style.boxShadow = "none"; return; }
+    var light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    var W = window.innerWidth || 1600, H = window.innerHeight || 900;
+    var field = function (seed, count, color, omin, omax) {
+      var r = starRng(seed), parts = [], i, x, y, o;
+      for (i = 0; i < count; i++) {
+        x = Math.floor(r() * W); y = Math.floor(r() * H);
+        o = (omin + r() * (omax - omin)).toFixed(2);
+        parts.push(x + "px " + y + "px 0 " + color.replace("{}", o));
+      }
+      return parts.join(",");
+    };
+    var dim = Math.round(total * 0.75);
+    var dimColor = light ? "rgba(20,26,45,{})" : "rgba(255,255,255,{})";
+    dimEl.style.boxShadow = field(7, dim, dimColor, light ? 0.06 : 0.08, light ? 0.16 : 0.24);
+    brightEl.style.boxShadow = field(21, total - dim, dimColor, light ? 0.09 : 0.16, light ? 0.20 : 0.36);
+  }
+  paintStars();
+  var starsTimer = null;
+  window.addEventListener("resize", function () {
+    if (starsTimer) clearTimeout(starsTimer);
+    starsTimer = setTimeout(paintStars, 250);
+  });
+  function pressPrimary() {
+    var primary = document.querySelector("[data-action]");
+    if (primary && !primary.disabled) primary.click();
+  }
+  document.addEventListener("keydown", function (ev) {
+    if (document.body.classList.contains("terminal") || busy) return;
+    var ae = document.activeElement;
+    var tag = ae ? ae.tagName : "";
+    var inText = tag === "TEXTAREA" || tag === "SELECT" ||
+      (tag === "INPUT" && ae.type !== "radio" && ae.type !== "checkbox");
+    if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") {
+      if (tag === "BUTTON") return;
+      ev.preventDefault();
+      pressPrimary();
+      return;
+    }
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key >= "1" && ev.key <= "9") {
+      if (CFG.inputType !== "single_choice" && CFG.inputType !== "multi_choice") return;
+      if (inText) return;
+      var boxes = document.querySelectorAll('input[name="choice"]');
+      var box = boxes[Number(ev.key) - 1];
+      if (!box || box.disabled) return;
+      ev.preventDefault();
+      box.checked = CFG.inputType === "single_choice" ? true : !box.checked;
+      box.dispatchEvent(new Event("change"));
+      return;
+    }
+    if (ev.key === "Enter") {
+      if (tag === "BUTTON" || tag === "TEXTAREA" || tag === "SELECT") return;
+      ev.preventDefault();
+      pressPrimary();
+    }
+  });
 
   if (CFG.initialStatus === "pending") {
     listen();

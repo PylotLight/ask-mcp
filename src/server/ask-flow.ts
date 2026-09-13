@@ -21,6 +21,7 @@ export interface AskFlowDeps {
   artifacts: ArtifactStore
   baseUrl: string
   openBrowser: boolean
+  browser?: string
 }
 
 /** Lenient whole-args shape: everything optional — templates can supply the required parts. */
@@ -130,7 +131,7 @@ export async function runAsk(deps: AskFlowDeps, args: AskArgs, res?: ServerRespo
   }
   await bestEffort(() => deps.artifacts.saveSpec(entry.token, entry.requestId, args), "spec")
   console.error(`[ask] form ready: ${formUrl} (requestId=${entry.requestId})`)
-  if (deps.openBrowser) openInBrowser(formUrl)
+  if (deps.openBrowser) openInBrowser(formUrl, deps.browser)
   const result: AskResult = await promise
   deps.store.markConsumed(entry.token)
   await bestEffort(() => deps.artifacts.saveResponse(entry.token, entry.requestId, result), "response")

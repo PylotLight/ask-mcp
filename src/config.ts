@@ -7,6 +7,14 @@ import { VERSION } from "./version.js"
 
 export type SurfaceMode = "auto" | "apps" | "browser"
 
+/** Background texture for ask forms. */
+export const FORM_THEMES = ["minimal", "starfield", "dots", "contour"] as const
+export type FormTheme = (typeof FORM_THEMES)[number]
+
+/** Theme animation level: full > subtle (twinkle only) > still. */
+export const THEME_MOTIONS = ["full", "subtle", "still"] as const
+export type ThemeMotion = (typeof THEME_MOTIONS)[number]
+
 export interface Config {
   port: number
   host: string
@@ -17,9 +25,17 @@ export interface Config {
   /** How long the post-submit settle view stays before the page tries to close itself. 0 disables auto-close. */
   settleViewMs: number
   surface: SurfaceMode
+  /** Background texture for ask forms. */
+  theme: FormTheme
+  /** Star count for the starfield theme (0–5000). */
+  themeStars: number
+  /** Theme animation level. */
+  themeMotion: ThemeMotion
   authToken?: string
   adminToken?: string
   openBrowser: boolean
+  /** Non-default browser for opening forms (macOS app name, Windows alias/exe, Linux command). Empty = system default. */
+  browser?: string
   /** Serve MCP over stdin/stdout (client-spawned mode); HTTP still serves form pages. */
   stdio: boolean
   /** Resolved path of the config file (for the admin panel's save endpoint). */
@@ -28,7 +44,7 @@ export interface Config {
 
 const DEFAULT_PORT = 8787
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
-const DEFAULT_SETTLE_VIEW_MS = 8000
+const DEFAULT_SETTLE_VIEW_MS = 3000
 
 function loopback(host: string): string {
   return host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host
@@ -69,8 +85,12 @@ Server options:
   --settle-view-ms <n> How long the post-answer "recorded" view stays before the page closes
                        (default: ${DEFAULT_SETTLE_VIEW_MS}, 0 = stay open until the user closes it)
   --surface <mode>     auto | apps | browser (default: auto; MCP Apps is deferred)
+  --theme <name>       Form background: minimal | starfield | dots | contour (default: minimal)
+  --theme-stars <n>    Star count for the starfield theme (default: 1000, max 5000)
+  --theme-motion <m>   Theme animation: full | subtle | still (default: full)
   --auth-token <t>     Require 'Authorization: Bearer <t>' on MCP endpoint calls
   --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
+  --browser <name>     Open forms in a non-default browser (macOS app name, Windows alias/exe, Linux command)
   --no-open            Do not auto-open the form URL in a browser
   -h, --help           Show this help
 
@@ -88,7 +108,7 @@ function int(value: string, flag: string): number {
 }
 
 /** Raw, unvalidated settings collected from CLI/env/file before precedence merging. */
-type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "settleViewMs" | "surface" | "authToken" | "adminToken" | "noOpen" | "stdio", string | boolean>>
+type RawSettings = Partial<Record<"port" | "host" | "baseUrl" | "dataDir" | "retentionDays" | "timeoutMs" | "settleViewMs" | "surface" | "theme" | "themeStars" | "themeMotion" | "authToken" | "adminToken" | "browser" | "noOpen" | "stdio", string | boolean>>
 
 const fileSchema = z.object({
   port: z.number().int().optional(),
@@ -99,8 +119,12 @@ const fileSchema = z.object({
   timeoutMs: z.number().int().min(1000).optional(),
   settleViewMs: z.number().int().min(0).optional(),
   surface: z.enum(["auto", "apps", "browser"]).optional(),
+  theme: z.enum(FORM_THEMES).optional(),
+  themeStars: z.number().int().min(0).max(5000).optional(),
+  themeMotion: z.enum(THEME_MOTIONS).optional(),
   authToken: z.string().min(1).optional(),
   adminToken: z.string().min(1).optional(),
+  browser: z.string().min(1).optional(),
   noOpen: z.boolean().optional(),
 })
 
@@ -145,8 +169,12 @@ function envSettings(): RawSettings {
   if (str("ASK_MCP_TIMEOUT_MS")) raw.timeoutMs = str("ASK_MCP_TIMEOUT_MS")
   if (str("ASK_MCP_SETTLE_VIEW_MS")) raw.settleViewMs = str("ASK_MCP_SETTLE_VIEW_MS")
   if (str("ASK_MCP_SURFACE")) raw.surface = str("ASK_MCP_SURFACE")
+  if (str("ASK_MCP_THEME")) raw.theme = str("ASK_MCP_THEME")
+  if (str("ASK_MCP_THEME_STARS")) raw.themeStars = str("ASK_MCP_THEME_STARS")
+  if (str("ASK_MCP_THEME_MOTION")) raw.themeMotion = str("ASK_MCP_THEME_MOTION")
   if (str("ASK_MCP_AUTH_TOKEN")) raw.authToken = str("ASK_MCP_AUTH_TOKEN")
   if (str("ASK_MCP_ADMIN_TOKEN")) raw.adminToken = str("ASK_MCP_ADMIN_TOKEN")
+  if (str("ASK_MCP_BROWSER")) raw.browser = str("ASK_MCP_BROWSER")
   if (env.ASK_MCP_NO_OPEN === "1" || env.ASK_MCP_NO_OPEN === "true") raw.noOpen = true
   if (env.ASK_MCP_STDIO === "1" || env.ASK_MCP_STDIO === "true") raw.stdio = true
   return raw
@@ -191,11 +219,23 @@ function parseCli(argv: string[]): { settings: RawSettings; configPath?: string;
       case "--surface":
         settings.surface = value()
         break
+      case "--theme":
+        settings.theme = value()
+        break
+      case "--theme-stars":
+        settings.themeStars = value()
+        break
+      case "--theme-motion":
+        settings.themeMotion = value()
+        break
       case "--auth-token":
         settings.authToken = value()
         break
       case "--admin-token":
         settings.adminToken = value()
+        break
+      case "--browser":
+        settings.browser = value()
         break
       case "--no-open":
         settings.noOpen = true
@@ -218,6 +258,28 @@ function resolveSurface(value: string | undefined): SurfaceMode {
   if (value === undefined) return "auto"
   if (value === "auto" || value === "apps" || value === "browser") return value
   throw new Error(`invalid surface: ${value}`)
+}
+
+function resolveTheme(value: string | undefined): FormTheme {
+  if (value === undefined) return "minimal"
+  if ((FORM_THEMES as readonly string[]).includes(value)) return value as FormTheme
+  throw new Error(`invalid theme: ${value} (expected ${FORM_THEMES.join(" | ")})`)
+}
+
+const DEFAULT_THEME_STARS = 1000
+const MAX_THEME_STARS = 5000
+
+function resolveThemeMotion(value: string | undefined): ThemeMotion {
+  if (value === undefined) return "full"
+  if ((THEME_MOTIONS as readonly string[]).includes(value)) return value as ThemeMotion
+  throw new Error(`invalid theme-motion: ${value} (expected ${THEME_MOTIONS.join(" | ")})`)
+}
+
+function resolveThemeStars(value: string | number | boolean | undefined, what: string): number | undefined {
+  if (value === undefined) return undefined
+  const n = typeof value === "number" ? value : Number.parseInt(String(value), 10)
+  if (!Number.isInteger(n) || n < 0 || n > MAX_THEME_STARS) throw new Error(`${what} must be an integer 0–${MAX_THEME_STARS}, got: ${value}`)
+  return n
 }
 
 function resolveInt(value: string | number | boolean | undefined, what: string, min: number): number | undefined {
@@ -248,6 +310,9 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
   const timeoutMs = resolveInt(merged.timeoutMs ?? DEFAULT_TIMEOUT_MS, "--timeout-ms", 1000)!
   const settleViewMs = resolveInt(merged.settleViewMs ?? DEFAULT_SETTLE_VIEW_MS, "--settle-view-ms", 0)!
   const surface = resolveSurface(merged.surface)
+  const theme = resolveTheme(merged.theme)
+  const themeStars = resolveThemeStars(merged.themeStars, "--theme-stars") ?? DEFAULT_THEME_STARS
+  const themeMotion = resolveThemeMotion(merged.themeMotion)
   const stdio = merged.stdio === true
 
   return {
@@ -259,9 +324,13 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
     timeoutMs,
     settleViewMs,
     surface,
+    theme,
+    themeStars,
+    themeMotion,
     authToken: merged.authToken,
     adminToken: merged.adminToken ?? merged.authToken,
     openBrowser: isLoopback(host) && !merged.noOpen,
+    browser: merged.browser,
     stdio,
     configPath,
   }
@@ -284,8 +353,18 @@ function cleanRaw(raw: RawSettings): FileSettings & { stdio?: boolean } {
     if (raw.surface === true) throw new Error("surface must be a string")
     out.surface = resolveSurface(raw.surface)
   }
+  if (raw.theme !== undefined && raw.theme !== false) {
+    if (raw.theme === true) throw new Error("theme must be a string")
+    out.theme = resolveTheme(raw.theme)
+  }
+  assign("themeStars", resolveThemeStars(raw.themeStars, "--theme-stars"))
+  if (raw.themeMotion !== undefined && raw.themeMotion !== false) {
+    if (raw.themeMotion === true) throw new Error("theme-motion must be a string")
+    out.themeMotion = resolveThemeMotion(raw.themeMotion)
+  }
   assign("authToken", typeof raw.authToken === "string" ? raw.authToken : undefined)
   assign("adminToken", typeof raw.adminToken === "string" ? raw.adminToken : undefined)
+  assign("browser", typeof raw.browser === "string" && raw.browser.trim() !== "" ? raw.browser : undefined)
   if (raw.noOpen === true) out.noOpen = true
   if (raw.stdio === true) out.stdio = true
   return out

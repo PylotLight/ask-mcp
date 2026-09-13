@@ -31,7 +31,7 @@ function metaClass(meta?: string): string {
 function otherChoice(kind: "radio" | "checkbox", placeholder?: string): string {
   const ph = esc(placeholder ?? "Type your own…")
   return `<label class="choice choice-other"><input type="${kind}" name="choice" value="${OTHER_ID}">
-<span><span class="choice-title">Other</span><input type="text" class="other-input" id="other-input" placeholder="${ph}" aria-label="Other"></span></label>`
+<span class="choice-num choice-num-other" aria-hidden="true"></span><span><span class="choice-title">Other</span><input type="text" class="other-input" id="other-input" placeholder="${ph}" aria-label="Other"></span></label>`
 }
 
 /** Filter out option_card blocks that duplicate choice options (they are rendered as the choices). */
@@ -61,11 +61,12 @@ export function renderInputRegion(args: AskArgs): string {
           const meta = card?.meta ?? o.meta
           const cls = meta ? ` choice-meta${metaClass(meta)}` : " choice-meta"
           return `<label class="choice"><input type="radio" name="choice" value="${esc(o.id)}">
-<span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
+<span class="choice-num" aria-hidden="true"></span><span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
         })
         .join("")
+      const total = input.options.length + (input.other ? 1 : 0)
       return `
-<div class="choice-list" id="choice-list" role="radiogroup">${items}${input.other ? otherChoice("radio", input.other.placeholder) : ""}</div>`
+<div class="choice-list${total >= 4 ? " choice-grid" : ""}" id="choice-list" role="radiogroup">${items}${input.other ? otherChoice("radio", input.other.placeholder) : ""}</div>`
     }
     case "multi_choice": {
       const min = input.min ?? 0
@@ -78,11 +79,12 @@ export function renderInputRegion(args: AskArgs): string {
           const meta = card?.meta ?? o.meta
           const cls = meta ? ` choice-meta${metaClass(meta)}` : " choice-meta"
           return `<label class="choice"><input type="checkbox" name="choice" value="${esc(o.id)}">
-<span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
+<span class="choice-num" aria-hidden="true"></span><span><span class="choice-title">${esc(title)}${meta ? `<span class="${cls.trim()}">${esc(meta)}</span>` : ""}</span>${desc ? `<div class="choice-desc">${esc(desc)}</div>` : ""}</span></label>`
         })
         .join("")
+      const total = input.options.length + (input.other ? 1 : 0)
       return `
-<div class="choice-list" id="choice-list" data-min="${min}" data-max="${max}">${items}${input.other ? otherChoice("checkbox", input.other.placeholder) : ""}</div>
+<div class="choice-list${total >= 4 ? " choice-grid" : ""}" id="choice-list" data-min="${min}" data-max="${max}">${items}${input.other ? otherChoice("checkbox", input.other.placeholder) : ""}</div>
 <div class="field-error" id="choice-error">Select between ${min} and ${max} options.</div>
 <div class="choice-count" id="choice-count" hidden></div>`
     }
@@ -163,9 +165,13 @@ export function renderActions(args: AskArgs, allowCancel: boolean): string {
       break
     }
     case "single_choice":
-    case "multi_choice":
+    case "multi_choice": {
       parts.push(`<button type="button" class="btn-primary" id="btn-primary" data-action="choose">Confirm</button>`)
+      const n = input.options.length + (input.other ? 1 : 0)
+      const hi = Math.min(n, 9)
+      if (hi >= 1) parts.push(`<span class="kbd-hint" aria-hidden="true"><kbd>1</kbd>${hi > 1 ? `–<kbd>${hi}</kbd>` : ""} select · <kbd>↵</kbd> confirm</span>`)
       break
+    }
     case "text":
     case "form":
       parts.push(`<button type="button" class="btn-primary" id="btn-primary" data-action="submit">${esc(input.submitLabel ?? "Submit")}</button>`)

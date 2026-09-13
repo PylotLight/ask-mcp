@@ -74,7 +74,7 @@ async function main(): Promise<void> {
     boundPort = await listen(server, 0, config.host)
     console.error(`[ask] port ${config.port} busy; form pages bound to ${boundPort} instead`)
   }
-  const deps = { store, artifacts, templates, baseUrl: formBaseUrl(config, boundPort), openBrowser: config.openBrowser }
+  const deps = { store, artifacts, templates, baseUrl: formBaseUrl(config, boundPort), openBrowser: config.openBrowser, browser: config.browser }
 
   if (config.stdio) {
     const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js")

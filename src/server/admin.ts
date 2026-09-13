@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto"
 import type { IncomingMessage, ServerResponse } from "node:http"
+import { readFile, writeFile } from "node:fs/promises"
 import { VERSION } from "../version.js"
 import { configFileSchema, writeConfigFile, type Config } from "../config.js"
 import type { ArtifactStore } from "../store/artifacts.js"
@@ -246,6 +247,7 @@ function serverInfo(deps: AdminDeps): Record<string, unknown> {
     startedAt: deps.startedAt,
     uptimeSeconds: Math.floor((Date.now() - deps.startedAt) / 1000),
     pending: deps.store.list().filter((e) => e.status === "pending").length,
+    platform: process.platform,
     config: {
       port: c.port,
       host: c.host,
@@ -254,7 +256,10 @@ function serverInfo(deps: AdminDeps): Record<string, unknown> {
       configPath: c.configPath,
       retentionDays: c.retentionDays,
       timeoutMs: c.timeoutMs,
+      settleViewMs: c.settleViewMs,
       surface: c.surface,
+      theme: c.theme,
+      browser: c.browser ?? null,
       openBrowser: c.openBrowser,
       authTokenConfigured: Boolean(c.authToken),
       adminTokenConfigured: Boolean(c.adminToken),
@@ -274,17 +279,22 @@ function configInfo(deps: AdminDeps): Record<string, unknown> {
       dataDir: c.dataDir,
       retentionDays: c.retentionDays,
       timeoutMs: c.timeoutMs,
+      settleViewMs: c.settleViewMs,
       surface: c.surface,
+      theme: c.theme,
+      themeStars: c.themeStars,
+      themeMotion: c.themeMotion,
+      browser: c.browser ?? "",
     },
     notes: {
-      runtimeApplied: ["timeoutMs", "retentionDays"],
+      runtimeApplied: ["timeoutMs", "retentionDays", "settleViewMs", "theme", "themeStars", "themeMotion", "browser"],
       restartRequired: ["port", "host", "baseUrl", "dataDir", "surface"],
       tokens: "authToken/adminToken are not editable here — set them via --auth-token/--admin-token, env, or config.json",
     },
   }
 }
 
-const NUMERIC_FIELDS = ["port", "retentionDays", "timeoutMs"] as const
+const NUMERIC_FIELDS = ["port", "retentionDays", "timeoutMs", "settleViewMs", "themeStars"] as const
 
 async function handleConfigPut(deps: AdminDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   let body: unknown
@@ -299,6 +309,7 @@ async function handleConfigPut(deps: AdminDeps, req: IncomingMessage, res: Serve
     if (typeof patch[field] === "string" && patch[field] !== "") patch[field] = Number(patch[field])
     if (patch[field] === "") delete patch[field]
   }
+  if (typeof patch.browser === "string" && patch.browser.trim() === "") delete patch.browser
   const parsed = configFileSchema.safeParse(patch)
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
@@ -316,6 +327,31 @@ async function handleConfigPut(deps: AdminDeps, req: IncomingMessage, res: Serve
     deps.config.retentionDays = saved.retentionDays
     appliedRuntime.push("retentionDays")
   }
+  if (saved.settleViewMs !== undefined) {
+    deps.config.settleViewMs = saved.settleViewMs
+    appliedRuntime.push("settleViewMs")
+  }
+  if (saved.theme !== undefined) {
+    deps.config.theme = saved.theme
+    appliedRuntime.push("theme")
+  }
+  if (saved.themeStars !== undefined) {
+    deps.config.themeStars = saved.themeStars
+    appliedRuntime.push("themeStars")
+  }
+  if (saved.themeMotion !== undefined) {
+    deps.config.themeMotion = saved.themeMotion
+    appliedRuntime.push("themeMotion")
+  }
+  const rawBrowser = (body as Record<string, unknown>).browser
+  if (typeof rawBrowser === "string" && rawBrowser.trim() === "") {
+    deps.config.browser = undefined
+    appliedRuntime.push("browser")
+    await clearBrowserFromFile(deps.config.configPath)
+  } else if (saved.browser !== undefined) {
+    deps.config.browser = saved.browser
+    appliedRuntime.push("browser")
+  }
   const restartRequired: string[] = []
   if (saved.port !== undefined && saved.port !== deps.config.port) restartRequired.push("port")
   if (saved.host !== undefined && saved.host !== deps.config.host) restartRequired.push("host")
@@ -323,6 +359,19 @@ async function handleConfigPut(deps: AdminDeps, req: IncomingMessage, res: Serve
   if (saved.dataDir !== undefined && saved.dataDir !== deps.config.dataDir) restartRequired.push("dataDir")
   if (saved.surface !== undefined && saved.surface !== deps.config.surface) restartRequired.push("surface")
   sendJson(res, 200, { ok: true, saved, appliedRuntime, restartRequired })
+}
+
+/** Remove `browser` from config.json so an emptied admin field resets to the system default. */
+async function clearBrowserFromFile(filePath: string): Promise<void> {
+  try {
+    const obj = JSON.parse(await readFile(filePath, "utf8")) as Record<string, unknown>
+    if ("browser" in obj) {
+      delete obj.browser
+      await writeFile(filePath, JSON.stringify(obj, null, 2))
+    }
+  } catch {
+    // Missing or unreadable file: nothing to clear.
+  }
 }
 
 async function handleTemplatePut(deps: AdminDeps, req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {

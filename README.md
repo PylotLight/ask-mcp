@@ -110,7 +110,9 @@ If the port is busy (e.g. ask-mcp is already running), it says so instead of cra
 - **Templates** — recurring asks saved as named, validated recipes (`deploy-confirm`, your own); the agent discovers them with `ask_templates` and invokes by id.
 - **Admin panel** — token-gated dashboard: live pending asks with cancel, full history browser, config editor, template CRUD.
 - **Artifacts** — every ask is persisted (`spec.json`, `response.json`, `render.html`) under `~/.config/ask-mcp/YYYY-MM-DD/<token>/`, with optional retention pruning.
-- **Live pages** — forms track status over SSE: submitted → delivered, cancelled, expired. After answering, a settle view shows exactly what was recorded plus a permalink (auto-close delay: `--settle-view-ms`, default 8 s; `0` keeps the page open until dismissed).
+- **Live pages** — forms track status over SSE: submitted → delivered, cancelled, expired. After answering, a settle view shows exactly what was recorded plus a permalink, with a visible auto-close countdown + Close now / Stay open / Copy link (auto-close delay: `--settle-view-ms`, default 3 s; `0` keeps the page open until dismissed). Browsers forbid scripts from closing tabs they didn't open, so if auto-close is refused the tab retitles to ✓ and shows the ⌘W/Ctrl+W hint instead.
+- **Keyboard-first** — choices are numbered: `1`–`9` to pick, `Enter` to confirm, `⌘/Ctrl+Enter` from text areas.
+- **Themes** — four monochrome form backgrounds (`minimal`, `starfield`, `dots`, `contour`) with tunable star density and motion level (`full`/`subtle`/`still`), per-install via `--theme`/`--theme-stars`/`--theme-motion` or the admin Config tab (applies live).
 - **HTTP twin** — `POST /api/ask` + `GET /api/templates` give scripts and CI the same pipeline as the MCP tool (see [docs/commands.md](docs/commands.md)).
 - **Safe by construction** — HTML-escaped rendering, strict zod schemas, per-ask 128-bit capability tokens, strict CSP, loopback-by-default binding.
 
@@ -205,8 +207,12 @@ ask-mcp install-commands [--dir <target>] [--force]
   --data-dir <dir>     Artifact directory (default: ~/.config/ask-mcp)
   --retention-days <n> Prune artifacts older than n days at startup + every 6 h (default: 0 = forever)
   --timeout-ms <n>     Ask blocking timeout (default: 600000, min 1000)
-  --settle-view-ms <n> Post-answer settle view auto-close delay (default: 8000, 0 = stay open)
+  --settle-view-ms <n> Post-answer settle view auto-close delay (default: 3000, 0 = stay open)
   --surface <mode>     auto | apps | browser (MCP Apps is deferred; see docs/)
+  --browser <name>     Open forms in a non-default browser (macOS app name, Windows alias/exe, Linux command)
+  --theme <name>       Form background: minimal | starfield | dots | contour (default: minimal)
+  --theme-stars <n>    Star count for the starfield theme (default: 1000, max 5000)
+  --theme-motion <m>   Theme animation: full | subtle | still (default: full)
   --auth-token <t>     Require Bearer auth on the MCP endpoint
   --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
   --no-open            Don't auto-open forms in a browser
@@ -214,7 +220,7 @@ ask-mcp install-commands [--dir <target>] [--force]
   -h, --help           Show help
 ```
 
-Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the config file (managed in the admin panel's **Config** tab).
+Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the config file (managed in the admin panel's **Config** tab). Run a personal IDE with `--browser "Google Chrome"` (or `ASK_MCP_BROWSER`) while work tools keep the system default — each install points at its own browser.
 
 ## Authoring guidance for models
 
@@ -236,7 +242,7 @@ Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the co
 ```bash
 git clone https://github.com/PylotLight/ask-mcp && cd ask-mcp
 bun install
-bun run build        # tsc emit → dist/
+bun run build        # bun bundle → dist/index.js (single file, zero runtime deps)
 bun run typecheck    # tsc --noEmit
 bun run test         # vitest
 bun src/index.ts     # run from source (or: node dist/index.js)

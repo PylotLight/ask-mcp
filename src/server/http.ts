@@ -29,7 +29,7 @@ export function createHttpServer(deps: HttpDeps): ReturnType<typeof createServer
 }
 
 function mcpDeps(deps: HttpDeps): McpDeps {
-  return { store: deps.store, artifacts: deps.artifacts, templates: deps.templates, baseUrl: deps.config.baseUrl, openBrowser: deps.config.openBrowser }
+  return { store: deps.store, artifacts: deps.artifacts, templates: deps.templates, baseUrl: deps.config.baseUrl, openBrowser: deps.config.openBrowser, browser: deps.config.browser }
 }
 
 function adminDeps(deps: HttpDeps): AdminDeps {
@@ -92,7 +92,7 @@ async function handleMcpEndpoint(deps: HttpDeps, req: IncomingMessage, res: Serv
 function handleFormPage(deps: HttpDeps, token: string, res: ServerResponse): void {
   const entry = deps.store.get(token)
   if (!entry) return sendHtml(res, 404, renderGonePage())
-  const html = renderPage(entry.args, token, entry.status, entry.args.options?.density ?? "comfortable", deps.config.settleViewMs)
+  const html = renderPage(entry.args, token, entry.status, entry.args.options?.density ?? "comfortable", deps.config.settleViewMs, deps.config.theme, { stars: deps.config.themeStars, motion: deps.config.themeMotion })
   void deps.artifacts.saveRender(token, html)
   sendHtml(res, 200, html)
 }

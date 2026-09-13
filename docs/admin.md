@@ -20,7 +20,7 @@ Open `http://127.0.0.1:8787/admin`, paste the token once; the browser keeps an `
 | --- | --- |
 | **Live asks** | Every in-memory ask (pending first) with title, input kind, age, status, and the form URL. Pending asks can be cancelled — the agent receives `{action: "cancel"}` exactly as if the tab was closed. Updates stream over SSE (`/admin/events`), no polling. |
 | **History** | Day-partitioned artifact browser (`~/.config/ask-mcp/YYYY-MM-DD/<token>/`): pick a day, pick an ask, view `spec.json`/`response.json` side by side, open the archived `render.html`. |
-| **Config** | A form over `config.json` (below). Save writes the file (previous version backed up to `config.json.bak`). `timeoutMs` and `retentionDays` apply to the live process immediately; `port`/`host`/`baseUrl`/`dataDir`/`surface` are marked *restart required*. Tokens are deliberately not editable here. |
+| **Config** | A form over `config.json` (below). Save writes the file (previous version backed up to `config.json.bak`). `timeoutMs`, `retentionDays`, `settleViewMs`, `theme`, `themeStars`, `themeMotion`, and `browser` apply to the live process immediately; `port`/`host`/`baseUrl`/`dataDir`/`surface` are marked *restart required*. Tokens are deliberately not editable here. |
 | **Templates** | CRUD for ask templates ("recipes") used by the `ask` tool, `POST /api/ask`, and the slash commands. Specs are validated with the same pipeline as live asks — invalid JSON or unknown block types are rejected with the zod error. |
 
 ## Config file
@@ -37,6 +37,11 @@ Location: `~/.config/ask-mcp/config.json` (override with `--config <path>`).
   "dataDir": "~/.config/ask-mcp",       // ~ is not expanded; use absolute paths
   "retentionDays": 30,                   // 0 = keep artifacts forever
   "timeoutMs": 600000,
+  "settleViewMs": 3000,                // post-answer auto-close delay; 0 = stay open
+  "browser": "Google Chrome",          // non-default browser for forms; omit = system default
+  "theme": "starfield",                // form background: minimal | starfield | dots | contour
+  "themeStars": 1000,                  // star count for starfield (0–5000)
+  "themeMotion": "full",               // theme animation: full | subtle | still
   "surface": "auto",
   "authToken": "…",                      // bearer for /mcp and /api/*
   "adminToken": "…",                     // unlocks /admin (falls back to authToken)
@@ -44,7 +49,13 @@ Location: `~/.config/ask-mcp/config.json` (override with `--config <path>`).
 }
 ```
 
-Environment variables: `ASK_MCP_PORT`, `ASK_MCP_HOST`, `ASK_MCP_BASE_URL`, `ASK_MCP_DATA_DIR`, `ASK_MCP_RETENTION_DAYS`, `ASK_MCP_TIMEOUT_MS`, `ASK_MCP_SURFACE`, `ASK_MCP_AUTH_TOKEN`, `ASK_MCP_ADMIN_TOKEN`, `ASK_MCP_NO_OPEN`.
+Environment variables: `ASK_MCP_PORT`, `ASK_MCP_HOST`, `ASK_MCP_BASE_URL`, `ASK_MCP_DATA_DIR`, `ASK_MCP_RETENTION_DAYS`, `ASK_MCP_TIMEOUT_MS`, `ASK_MCP_SETTLE_VIEW_MS`, `ASK_MCP_BROWSER`, `ASK_MCP_THEME`, `ASK_MCP_THEME_STARS`, `ASK_MCP_THEME_MOTION`, `ASK_MCP_SURFACE`, `ASK_MCP_AUTH_TOKEN`, `ASK_MCP_ADMIN_TOKEN`, `ASK_MCP_NO_OPEN`.
+
+The **Browser** field is a dropdown grouped by OS — macOS app names (`Google Chrome`, `Orion`, …), Windows aliases (`msedge`, `chrome`), Linux commands (`google-chrome`, `firefox`) — with `System default` and a `Custom…` escape hatch for anything else (exe paths, niche browsers). It applies live like the other runtime fields, so a personal IDE install can pop a personal browser while work tools keep the default Edge. The header line shows the server OS so you know which group applies.
+
+The **Form background** field picks the ask form's backdrop texture — `Minimal` (current flat gradient + grain), `Starfield` (pinprick dots), `Dot grid` (engineering dot-matrix), or `Contour lines` (faint topographic curves). All four are monochrome and low-contrast by design, with light-mode variants. Applies live; also settable per-install via `--theme` or `ASK_MCP_THEME`.
+
+**Stars** sets the starfield density (0–5000, default 1000; stars are generated at load, sized to the viewport). **Theme motion** gates animation: `Full` (twinkle + drift + shooting stars + dot drift), `Subtle` (twinkle only), or `Still` (`prefers-reduced-motion` also forces still). Both apply live; per-install via `--theme-stars`/`ASK_MCP_THEME_STARS` and `--theme-motion`/`ASK_MCP_THEME_MOTION`.
 
 ## HTTP API (cookie session required)
 

@@ -4,7 +4,7 @@
 
 **How to read:** each item is a one-liner with an effort tag — `[S]` small (hours), `[M]` medium (a day or two), `[L]` large (multi-day / architectural). Items already shipped or already designed in the roadmap are marked ✅ / 🚧. The renderer's invariants hold for everything below: lenient-at-the-edge, strict-inside schemas; single-shot store; best-effort artifacts; no framework in `render/`.
 
-**Current state (v0.3.1) for orientation:** 5 input kinds (`approve`, `single_choice`, `multi_choice`, `text`, `form`), 8 info blocks (heading, paragraph, markdown, callout, steps, option_card, table, divider), Other escape hatch, templates with merge, admin panel (live / history / config / templates), day-partitioned artifacts, SSE live pages, `/api/ask` HTTP twin, stdio + Streamable HTTP transports, `install-commands`.
+**Current state (v0.4.0) for orientation:** 5 input kinds (`approve`, `single_choice`, `multi_choice`, `text`, `form`), 8 info blocks (heading, paragraph, markdown, callout, steps, option_card, table, divider), Other escape hatch, templates with merge, admin panel (live / history / config / templates), day-partitioned artifacts, SSE live pages, `/api/ask` HTTP twin, stdio + Streamable HTTP transports, `install-commands`.
 
 ---
 

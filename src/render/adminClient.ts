@@ -57,7 +57,7 @@ export function adminClientScript(): string {
       $("#server-uptime").textContent = fmtAge(info.uptimeSeconds * 1000);
       const c = info.config;
       $("#server-config").textContent =
-        c.baseUrl + " · " + c.configPath + " · retention " + c.retentionDays + "d · timeout " + Math.round(c.timeoutMs / 1000) + "s" +
+        c.baseUrl + " · " + info.platform + " · " + c.configPath + " · retention " + c.retentionDays + "d · timeout " + Math.round(c.timeoutMs / 1000) + "s · settle " + (c.settleViewMs === 0 ? "stay open" : Math.round(c.settleViewMs / 100) / 10 + "s") + " · browser " + (c.browser || "default") + " · theme " + (c.theme || "minimal") +
         (c.authTokenConfigured ? " · auth on" : "");
     } catch (err) { flash("server info failed: " + err.message); }
   };
@@ -153,6 +153,21 @@ export function adminClientScript(): string {
   $("#history-detail-close").addEventListener("click", () => { $("#history-detail").hidden = true; });
 
   /* ---- config ---- */
+  const syncBrowserField = (form, value) => {
+    const sel = form.elements.browser;
+    const known = Array.prototype.some.call(sel.options, (o) => o.value === value);
+    if (known) {
+      sel.value = value;
+      $("#cfg-browser-custom-wrap").hidden = true;
+    } else {
+      sel.value = "__custom__";
+      form.elements.browserCustom.value = value;
+      $("#cfg-browser-custom-wrap").hidden = false;
+    }
+  };
+  $("#cfg-browser").addEventListener("change", (ev) => {
+    $("#cfg-browser-custom-wrap").hidden = ev.target.value !== "__custom__";
+  });
   const loadConfig = async () => {
     try {
       const info = await api("/admin/api/config");
@@ -164,7 +179,12 @@ export function adminClientScript(): string {
       form.elements.dataDir.value = v.dataDir;
       form.elements.retentionDays.value = v.retentionDays;
       form.elements.timeoutMs.value = v.timeoutMs;
+      form.elements.settleViewMs.value = v.settleViewMs;
+      syncBrowserField(form, v.browser || "");
       form.elements.surface.value = v.surface;
+      form.elements.theme.value = v.theme || "minimal";
+      form.elements.themeStars.value = v.themeStars ?? 1000;
+      form.elements.themeMotion.value = v.themeMotion || "full";
       $("#config-path").textContent = info.configPath;
       $("#config-notes").textContent = "runtime-applied: " + info.notes.runtimeApplied.join(", ") + " · restart required for: " + info.notes.restartRequired.join(", ") + " · " + info.notes.tokens;
     } catch (err) { flash("config load failed: " + err.message); }
@@ -179,7 +199,12 @@ export function adminClientScript(): string {
       dataDir: f.elements.dataDir.value,
       retentionDays: f.elements.retentionDays.value,
       timeoutMs: f.elements.timeoutMs.value,
+      settleViewMs: f.elements.settleViewMs.value,
+      browser: f.elements.browser.value === "__custom__" ? f.elements.browserCustom.value.trim() : f.elements.browser.value,
       surface: f.elements.surface.value,
+      theme: f.elements.theme.value,
+      themeStars: f.elements.themeStars.value,
+      themeMotion: f.elements.themeMotion.value,
     };
     try {
       const out = await api("/admin/api/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });

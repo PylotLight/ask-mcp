@@ -22,6 +22,7 @@ export interface McpDeps {
   templates: TemplateStore
   baseUrl: string
   openBrowser: boolean
+  browser?: string
 }
 
 export const ASK_TOOL_DESCRIPTION = `Show structured information (plans, options, diffs, tables) to the user in a rendered form and collect a decision or input.
