@@ -4,42 +4,35 @@
 [![license MIT](https://img.shields.io/badge/license-MIT-blue)](package.json)
 [![node](https://img.shields.io/node/v/@pylotlight/ask-mcp)](package.json)
 
-A blocking **"ask the user"** MCP tool that renders questions as real HTML forms in the browser — approvals, choices, tables, markdown, short forms — and returns structured, validated answers to the agent.
+An MCP tool that asks **you** questions — as real HTML forms in the browser. The agent calls `ask`, a form opens, and the call blocks until you answer. Approvals, choices, tables, markdown, short forms in; structured, validated answers out.
 
-## The problem
+## How it works
 
-Agent harnesses ship basic question tools (opencode's built-in `question`, Claude Code's `AskUserQuestion`). They render as inline chips in the chat and cap out fast:
+1. The agent calls `ask` with a title, context blocks, and an input.
+2. A form opens in your browser. The tool call waits — minutes, not seconds.
+3. You answer, cancel, or it times out. The agent gets validated structured data.
 
-- **No room for context** — a plan, a diff summary, or a comparison table has to be squeezed into chat text before the question.
-- **Loose answers** — free text the model must re-parse and hope it inferred your intent correctly, instead of validated structured data.
-- **No audit trail** — once the chat scrolls away, the question, the options you saw, and the answer you gave are gone.
-- **No lifecycle** — nothing to review later, no way to see or cancel what's currently pending.
-
-## The solution
-
-`ask` gives every question a proper surface. The agent calls the MCP tool, a form opens in your browser, and the tool call **blocks** until you answer, cancel, or the timeout fires:
-
-```
-agent ── tools/call("ask", {...}) ──► ask-mcp ──► renders form + opens browser
-                                                     │
-agent ◄── structured result ──── submit/cancel/timeout ◄┘
-```
-
-**Control** — decide with full context instead of a one-line prompt: option cards, callouts, step lists, tables, required rejection notes, forms with real typed fields and server-side validation.
-
-**Visibility** — every interaction is inspectable: live pending asks you can cancel from an admin panel, a day-partitioned history of every spec and response, archived renders of exactly what you saw, and named templates that turn recurring decisions into reviewable assets.
+Built-in question tools (opencode's `question`, Claude Code's `AskUserQuestion`) render as inline chat chips: no room for context, loose free-text answers, nothing saved afterwards. ask-mcp gives every question a proper surface instead — with a live queue you can cancel from an admin panel, a history of every spec and response, and archived renders of exactly what you saw.
 
 ## Screenshots
 
-| Choice cards | Free-text escape hatch |
-| --- | --- |
-| ![Choice cards](docs/screenshots/choice-cards.png) | ![Other input](docs/screenshots/other-input.png) |
+**Choice cards** — multi-select grid over the starfield background.
 
-| Plan approval with action bar | Info blocks |
-| --- | --- |
-| ![Sticky bar](docs/screenshots/sticky-bar.png) | ![Blocks](docs/screenshots/blocks.png) |
+![Choice cards](docs/screenshots/choice-cards.png)
 
-## Install & run
+**Free-text escape hatch** — the Other option over the dot-grid background.
+
+![Other input](docs/screenshots/other-input.png)
+
+**Plan approval** — long-form context with the sticky action bar over contour lines.
+
+![Sticky bar](docs/screenshots/sticky-bar.png)
+
+**Info blocks** — headings, tables, callouts, and diffs on minimal.
+
+![Blocks](docs/screenshots/blocks.png)
+
+## Install
 
 ```bash
 bunx @pylotlight/ask-mcp              # run without installing
@@ -47,133 +40,25 @@ npx -y @pylotlight/ask-mcp            # same, via npm
 npm i -g @pylotlight/ask-mcp          # or install globally → `ask-mcp`
 ```
 
-Requires Node ≥ 22 or Bun ≥ 1.2. Note: plain `bunx` runs the bin under Node (via the `#!/usr/bin/env node` shebang); add `--bun` to force the Bun runtime (`bunx --bun -y @pylotlight/ask-mcp --stdio`). There are two ways to connect it to your MCP client — pick one:
+Requires Node ≥ 22 or Bun ≥ 1.2.
 
-### Option A: client-spawned (npx style)
+### Connect your client
 
-The client launches the package itself, like any other npm MCP server. The tool call blocks, the form opens in your browser, and a small loopback HTTP server serves the form pages (falls back to a free port if 8787 is busy).
-
-**Claude Code:**
+One command — detects opencode, Claude Code, and Claude Desktop, adds the `ask` server to each, and installs `/ask-admin`:
 
 ```bash
-claude mcp add ask -- npx -y @pylotlight/ask-mcp --stdio
+npx -y @pylotlight/ask-mcp install
 ```
 
-**opencode** — `~/.config/opencode/opencode.json`:
+Existing entries are left alone unless `--force`; every touched file is backed up to `.bak` first.
 
-```json
-{
-  "mcp": {
-    "ask": {
-      "type": "local",
-      "command": ["npx", "-y", "@pylotlight/ask-mcp", "--stdio"],
-      "enabled": true
-    }
-  },
-  "experimental": { "mcp_timeout": 600000 }
-}
-```
+- `--client opencode|claude-code|claude-desktop` — target one client (default: all detected)
+- `--bun` — launch via `bunx --bun` (Bun runtime; plain `bunx` uses the Node shebang)
+- `--force` — overwrite an existing `ask` entry
 
-**Claude Desktop** (stdio-only client) — `claude_desktop_config.json`:
+The installer also sets opencode's `experimental.mcp_timeout`: blocking asks need a long tool timeout (client defaults ~30 s kill them — ten minutes is a good start; match it with `--timeout-ms`).
 
-```json
-{
-  "mcpServers": {
-    "ask": { "command": "npx", "args": ["-y", "@pylotlight/ask-mcp", "--stdio"] }
-  }
-}
-```
-
-`mcp_timeout` matters: clients default to ~30 s tool timeouts, which kills any blocking ask. Ten minutes is a good starting point; match it with `--timeout-ms` if you want the server and client to agree.
-
-### Option B: shared server
-
-Run the server yourself and point clients at it — one instance shared by multiple clients, and the gateway to the **admin panel**, **history**, and the **`/api/ask`** HTTP twin:
-
-```bash
-bunx @pylotlight/ask-mcp              # listens on http://127.0.0.1:8787, forms auto-open
-```
-
-**opencode**: `"type": "remote", "url": "http://127.0.0.1:8787/mcp"` (plus `mcp_timeout` as above).
-**Claude Code**: `claude mcp add --transport http ask http://127.0.0.1:8787/mcp`.
-**Other clients**: anything speaking MCP Streamable HTTP can point at `http://<host>:8787/mcp`; stdio-only clients can bridge with `supergateway`/`mcp-proxy`.
-
-If the port is busy (e.g. ask-mcp is already running), it says so instead of crashing.
-
-## Features
-
-- **Five input kinds** — `approve`, `single_choice`, `multi_choice`, `text`, `form`. The `type` field is optional and inferred from the fields you provide (`multi_choice` is the one exception — set it explicitly).
-- **Other escape hatch** — choice prompts accept `other: { placeholder }`, rendering a final pseudo-option with a free-text field: typing auto-selects it, an empty Other blocks submit, and the answer arrives as `otherText`.
-- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, diffs (unified view with per-line tints and +/- stats), dividers.
-- **Blocking semantics** — the MCP call stays open until the user responds; results come back as `structuredContent` plus a human-readable summary. If the client cancels the call (MCP `notifications/cancelled`, abort, disconnect), the pending ask is cancelled too instead of lingering until timeout.
-- **Dry run** — pass `dryRun: true` to validate + render + archive an ask without delivering it: the tool returns immediately with the archived preview path, no blocking, no browser, no user prompt. Use it to self-check an authored form before the real call.
-- **Templates** — recurring asks saved as named, validated recipes (`deploy-confirm`, your own); the agent discovers them with `ask_templates` and invokes by id.
-- **Admin panel** — token-gated dashboard: live pending asks with cancel, full history browser, config editor, template CRUD.
-- **Artifacts** — every ask is persisted (`spec.json`, `response.json`, `render.html`) under `~/.config/ask-mcp/YYYY-MM-DD/<token>/`, with optional retention pruning.
-- **Live pages** — forms track status over SSE: submitted → delivered, cancelled, expired. After answering, a settle view shows exactly what was recorded plus a permalink, with a visible auto-close countdown + Close now / Stay open / Copy link (auto-close delay: `--settle-view-ms`, default 3 s; `0` keeps the page open until dismissed). Browsers forbid scripts from closing tabs they didn't open, so if auto-close is refused the tab retitles to ✓ and shows the ⌘W/Ctrl+W hint instead.
-- **Keyboard-first** — choices are numbered: `1`–`9` to pick, `Enter` to confirm, `⌘/Ctrl+Enter` from text areas.
-- **Themes** — four monochrome form backgrounds (`minimal`, `starfield`, `dots`, `contour`) with tunable star density and motion level (`full`/`subtle`/`still`), per-install via `--theme`/`--theme-stars`/`--theme-motion` or the admin Config tab (applies live).
-- **HTTP twin** — `POST /api/ask` + `GET /api/templates` give scripts and CI the same pipeline as the MCP tool (see [docs/commands.md](docs/commands.md)).
-- **Safe by construction** — HTML-escaped rendering, strict zod schemas, per-ask 128-bit capability tokens, strict CSP, loopback-by-default binding.
-
-## The `ask` tool
-
-```jsonc
-{
-  "title": "Deploy to production?",           // required, ≤ 120 chars
-  "subtitle": "12 checks passed",             // optional
-  "blocks": [                                 // context shown above the input
-    { "type": "markdown", "markdown": "**3 files** changed (+142 −38)" },
-    { "type": "option_card", "id": "now", "title": "Deploy now", "meta": "~4 min", "description": "Blue-green, instant rollback" },
-    { "type": "option_card", "id": "later", "title": "Wait for Friday", "description": "Lower traffic window" }
-  ],
-  "input": {                                  // `type` optional — inferred
-    "options": [
-      { "id": "now", "label": "Deploy now" },
-      { "id": "later", "label": "Later" }
-    ]
-  },
-  "options": { "density": "comfortable", "allowCancel": true }  // optional
-}
-```
-
-### Input inference
-
-| Fields present                      | Resolved type   |
-| ----------------------------------- | --------------- |
-| `schema`                            | `form`          |
-| `options`                           | `single_choice` |
-| `placeholder` / `multiline` / `minLength` / `maxLength` / `submitLabel` | `text` |
-| anything else (or nothing)          | `approve`       |
-
-Per-kind extras: `approve` accepts `approveLabel`, `rejectLabel`, `noteRequired` (`never|on_reject|always`), `notePlaceholder`; `single_choice`/`multi_choice` accept `other: { placeholder }` and `multi_choice` also `min`/`max`; `text` accepts `placeholder`, `multiline`, `minLength`, `maxLength`, `submitLabel`; `form` takes a JSON-schema-ish object (string/number/integer/boolean fields, `enum`, `format`, bounds, `required`). `blocks` is optional — a title-only approve ask is valid. `multi_choice` is never inferred: pass `type: "multi_choice"` explicitly.
-
-### Results
-
-`structuredContent` depends on the interaction:
-
-```jsonc
-{ "action": "choose", "optionId": "now", "note": "optional" }
-{ "action": "choose", "optionIds": ["a", "b"] }
-{ "action": "choose", "optionId": "__other__", "otherText": "custom answer" }
-{ "action": "submit", "value": "free text" }
-{ "action": "submit", "values": { "field": "value", "count": 3, "ok": true } }
-{ "action": "approve" | "reject" }        // note included when provided
-{ "action": "cancel" }                    // user cancelled (nothing was sent)
-{ "action": "timeout" }                   // treat the question as unanswered
-```
-
-The `content[0].text` is a one-line summary (e.g. `User chose "Deploy now".`), so clients that surface text get a readable answer too. Submissions are re-validated server-side against the original ask before they're accepted.
-
-### Templates
-
-Recurring interactions can be saved as named templates (`~/.config/ask-mcp/templates/<id>.json`, editable in the admin panel) and referenced by id — explicit fields override the template:
-
-```jsonc
-{ "template": "deploy-confirm", "title": "Deploy to staging?" }
-```
-
-Use the `ask_templates` tool to list what's installed. See [docs/commands.md](docs/commands.md).
+Other MCP clients: launch the package over stdio with command `npx -y @pylotlight/ask-mcp --stdio` (`bunx --bun …` for the Bun runtime). A small loopback HTTP server serves the form pages (falls back to a free port if 8787 is busy).
 
 ## Slash command (opencode / openchamber)
 
@@ -181,89 +66,28 @@ Use the `ask_templates` tool to list what's installed. See [docs/commands.md](do
 npx -y @pylotlight/ask-mcp install-commands   # installs /ask-admin
 ```
 
-`/ask-admin` opens the admin panel (`/admin`) in the browser. All `ask` interactions are agent-driven via the MCP `ask` tool (and `ask_templates` for discovery); the `/api/ask` + `/api/templates` HTTP endpoints are the plain-HTTP twin for scripts. See [docs/commands.md](docs/commands.md).
+`/ask-admin` opens the admin panel in the browser. All `ask` flows stay agent-driven via the MCP tools. See [docs/commands.md](docs/commands.md).
 
 ## Admin panel
 
-Start with `--admin-token <t>` (or `--auth-token`) and open `/admin`:
+`/admin` just opens on the default localhost bind — no setup. Live asks with one-click cancel, the artifact history trail, a config editor (safe fields apply live), and template CRUD. A token (`--admin-token`, falling back to `--auth-token`) adds a sign-in gate for shared machines and network binds. See [docs/admin.md](docs/admin.md).
 
-- **Live asks** — pending queue with one-click cancel, streamed over SSE
-- **History** — the day-partitioned artifact trail (spec/response side by side, archived renders)
-- **Config** — a form over `~/.config/ask-mcp/config.json` (CLI > env > file precedence; safe fields apply live)
-- **Templates** — CRUD for ask recipes, validated with the same pipeline as live asks
+## Features
 
-Hidden (404) until a token is configured; see [docs/admin.md](docs/admin.md).
+- **Five input kinds** — `approve`, `single_choice`, `multi_choice`, `text`, `form`, with type inference and server-side validation.
+- **Other escape hatch** — choice prompts accept `other: { placeholder }`: typing auto-selects it, empty blocks submit, the answer arrives as `otherText`.
+- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, diffs, dividers.
+- **Dry run** — `dryRun: true` validates, renders, and archives without blocking, opening, or prompting. Self-check a form before the real call.
+- **Artifacts** — every ask persisted (`spec.json`, `response.json`, `render.html`) under `~/.config/ask-mcp/YYYY-MM-DD/<token>/`, with retention pruning.
+- **Live pages** — status tracked over SSE; after answering, a settle view shows what was recorded plus a permalink, with auto-close countdown + Close now / Stay open / Copy link (`--settle-view-ms`, default 3 s; `0` stays open).
+- **Keyboard-first** — `1`–`9` to pick, `Enter` to confirm, `⌘/Ctrl+Enter` from text areas.
+- **Themes** — four monochrome form backgrounds (`minimal`, `starfield`, `dots`, `contour`) with tunable density and motion, per-install or live from the admin Config tab.
+- **HTTP twin** — `POST /api/ask` + `GET /api/templates` give scripts and CI the same pipeline as the MCP tool.
+- **Safe by construction** — escaped rendering, strict schemas, per-ask 128-bit capability tokens, strict CSP, loopback-by-default binding.
 
-## CLI reference
+## Docs
 
-```
-ask-mcp [options]
-ask-mcp install-commands [--dir <target>] [--force]
-
-  --port <n>           HTTP port (default: 8787)
-  --host <addr>        Bind address (default: 127.0.0.1)
-  --base-url <url>     Public base URL for form links
-  --config <path>      Config file (default: ~/.config/ask-mcp/config.json; CLI > env > file > defaults)
-  --data-dir <dir>     Artifact directory (default: ~/.config/ask-mcp)
-  --retention-days <n> Prune artifacts older than n days at startup + every 6 h (default: 0 = forever)
-  --timeout-ms <n>     Ask blocking timeout (default: 600000, min 1000)
-  --settle-view-ms <n> Post-answer settle view auto-close delay (default: 3000, 0 = stay open)
-  --surface <mode>     auto | apps | browser (MCP Apps is deferred; see docs/)
-  --browser <name>     Open forms in a non-default browser (macOS app name, Windows alias/exe, Linux command)
-  --theme <name>       Form background: minimal | starfield | dots | contour (default: minimal)
-  --theme-stars <n>    Star count for the starfield theme (default: 1000, max 5000)
-  --theme-motion <m>   Theme animation: full | subtle | still (default: full)
-  --auth-token <t>     Require Bearer auth on the MCP endpoint
-  --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
-  --no-open            Don't auto-open forms in a browser
-  --stdio              Serve MCP over stdin/stdout (client-spawned mode); form pages still served over loopback HTTP
-  -h, --help           Show help
-```
-
-Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the config file (managed in the admin panel's **Config** tab). Run a personal IDE with `--browser "Google Chrome"` (or `ASK_MCP_BROWSER`) while work tools keep the system default — each install points at its own browser.
-
-## Authoring guidance for models
-
-- Put alternatives in `option_card` blocks and reference the same ids in choice options — cards become the clickable choices automatically (no duplication).
-- `approve` is for a single recommended plan; a rejection reason flows through `note` (require it with `noteRequired`).
-- Use `form`/`text` to collect data, choices to pick between plans.
-- One primary input per ask; ask follow-ups in subsequent calls.
-- Keep blocks concise — this is a decision surface, not a report.
-
-## Security model
-
-- Binds to loopback by default; set `--host 0.0.0.0` only with `--auth-token`.
-- The MCP endpoint accepts optional Bearer auth (constant-time compare). Form pages rely on their unguessable 128-bit per-ask token as a capability URL — that's what makes browser auto-open work without headers.
-- Pages ship a strict CSP (`default-src 'none'`, no framing), `no-referrer`, and every string is escaped before rendering; markdown is sanitized by whitelist, never passed through.
-- Form POSTs are re-validated against the ask's schema; cancel/submit are single-shot state transitions.
-
-## Development
-
-```bash
-git clone https://github.com/PylotLight/ask-mcp && cd ask-mcp
-bun install
-bun run build        # bun bundle → dist/index.js (single file, zero runtime deps)
-bun run typecheck    # tsc --noEmit
-bun run test         # vitest
-bun src/index.ts     # run from source (or: node dist/index.js)
-```
-
-Source layout:
-
-```
-src/
-  index.ts            entrypoint: config, stores, http server, signals (--stdio adds the stdio MCP transport)
-  config.ts           CLI/env/config-file parsing + validation (--help has the full list)
-  commands/           install-commands (opencode/openchamber slash command installer)
-  schema/             zod: blocks, input spec (+ lenient inference), args, results
-  server/             http routes, mcp endpoint, admin panel routes, /api/ask, shared ask flow
-  store/              pending asks (in-memory, TTL/pruning), artifact persistence, templates
-  render/             page/styles/client script/blocks/markdown/escaping + admin dashboard UI
-  util/               tokens, open-in-browser
-```
-
-Artifacts land in `--data-dir` (default `~/.config/ask-mcp`) as `YYYY-MM-DD/<token>/{spec.json,response.json,render.html}` — a full audit trail of every question asked, shown, and answered.
-
-## Roadmap
-
-The admin panel (live ask monitor, history, config, templates) and the `/ask-admin` slash command are implemented — see [docs/admin.md](docs/admin.md) and [docs/commands.md](docs/commands.md). The broader exploration (re-asks, webhooks, richer interaction blocks) lives in [docs/admin-roadmap.md](docs/admin-roadmap.md), and the full brainstorm inventory of possible expansion features — inputs, blocks, automation, analytics, channels, and beyond — is in [docs/feature-ideas.md](docs/feature-ideas.md). MCP Apps (rendering the ask inside the MCP client itself) is designed but intentionally deferred — see [docs/surface-a-mcp-apps.md](docs/surface-a-mcp-apps.md).
+- [docs/ask-tool.md](docs/ask-tool.md) — input kinds, inference rules, result shapes, templates
+- [docs/admin.md](docs/admin.md) — the admin panel
+- [docs/commands.md](docs/commands.md) — templates, HTTP API, slash command
+- [docs/reference.md](docs/reference.md) — CLI flags, security model, development, roadmap

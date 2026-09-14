@@ -9,11 +9,11 @@ import { PendingStore } from "../src/store/pending.js"
 import { ArtifactStore } from "../src/store/artifacts.js"
 import { TemplateStore } from "../src/store/templates.js"
 
-function makeDeps(opts: { adminToken?: string; authToken?: string } = {}): { deps: HttpDeps; url: string; close: () => Promise<void>; config: Config } {
+function makeDeps(opts: { adminToken?: string; authToken?: string; host?: string } = {}): { deps: HttpDeps; url: string; close: () => Promise<void>; config: Config } {
   const dir = mkdtempSync(path.join(tmpdir(), "ask-admin-"))
   const config: Config = {
     port: 0,
-    host: "127.0.0.1",
+    host: opts.host ?? "127.0.0.1",
     baseUrl: "",
     dataDir: dir,
     retentionDays: 0,
@@ -55,14 +55,34 @@ const askArgs = {
 }
 
 describe("admin panel HTTP surface", () => {
-  it("404s everything under /admin when no admin token is configured", async () => {
+  it("opens the panel without sign-in when no token is set on loopback", async () => {
     const { deps, close } = makeDeps()
     const server = createHttpServer(deps)
     const url = await listen(deps, server)
     try {
-      expect((await fetch(`${url}/admin`)).status).toBe(404)
-      expect((await fetch(`${url}/admin/api/pending`)).status).toBe(404)
-      expect((await fetch(`${url}/admin/api/server`)).status).toBe(404)
+      const page = await fetch(`${url}/admin`)
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain("Control panel")
+
+      const info = (await (await fetch(`${url}/admin/api/server`)).json()) as { config: { adminTokenConfigured: boolean } }
+      expect(info.config.adminTokenConfigured).toBe(false)
+    } finally {
+      await close()
+    }
+  })
+
+  it("locks the panel with setup instructions when exposed without a token", async () => {
+    const { deps, close } = makeDeps({ host: "0.0.0.0" })
+    const server = createHttpServer(deps)
+    const url = await listen(deps, server)
+    try {
+      const page = await fetch(`${url}/admin`)
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain("Admin is locked")
+
+      const api = await fetch(`${url}/admin/api/server`)
+      expect(api.status).toBe(403)
+      expect(((await api.json()) as { error: string }).error).toContain("adminToken")
     } finally {
       await close()
     }

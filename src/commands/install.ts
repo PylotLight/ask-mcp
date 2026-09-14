@@ -26,11 +26,11 @@ function commandFiles(baseUrl: string): Record<string, string> {
     "ask-admin.md": `---
 description: Open the ask-mcp admin panel in the browser
 ---
-Open the ask-mcp admin panel for the user with the system browser opener:
+Open this URL in the user's browser RIGHT NOW by running the command below. Do not probe the server first — no version checks, no connectivity checks, no browser tools. Just run the opener and report what happened:
 
 !` + "`" + `(open "${baseUrl}/admin" 2>/dev/null || xdg-open "${baseUrl}/admin" 2>/dev/null || echo "open ${baseUrl}/admin manually")` + "`" + `
 
-The panel manages pending asks (live view + cancel), history, server config, and ask templates. If it shows "not enabled", the server was started without --admin-token; tell the user to add it and restart.`,
+The panel manages pending asks (live view + cancel), history, server config, and ask templates. On the default localhost setup it opens without sign-in. If the server is exposed to the network without a token, the page itself explains how to set --admin-token and restart.`,
   }
 }
 

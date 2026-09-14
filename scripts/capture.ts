@@ -157,6 +157,13 @@ const fixtures: Record<string, Fixture> = {
   },
 };
 
+const fixtureThemes: Record<string, "minimal" | "starfield" | "dots" | "contour"> = {
+  "multi-4": "starfield",
+  "choice-other": "dots",
+  longPlan: "contour",
+  "blocks-full": "minimal",
+};
+
 const defaultViewports: Viewport[] = [
   { name: "mobile", width: 390, height: 844 },
   { name: "tablet", width: 768, height: 1024 },
@@ -188,7 +195,7 @@ mkdirSync("/tmp/captures", { recursive: true });
 mkdirSync("/tmp/ask-fixtures", { recursive: true });
 
 for (const [k, args] of fixtureEntries) {
-  const html = renderPage(args as any, "tok-" + k, "pending", (args as any).options?.density ?? "comfortable");
+  const html = renderPage(args as any, "tok-" + k, "pending", (args as any).options?.density ?? "comfortable", 3000, fixtureThemes[k] ?? "minimal");
   writeFileSync(`/tmp/ask-fixtures/${k}.html`, html);
   writeFileSync(`/tmp/captures/${k}.html`, html);
 }

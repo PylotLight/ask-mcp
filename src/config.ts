@@ -50,7 +50,7 @@ function loopback(host: string): string {
   return host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host
 }
 
-function isLoopback(host: string): boolean {
+export function isLoopback(host: string): boolean {
   return host === "127.0.0.1" || host === "localhost" || host === "::1"
 }
 
@@ -65,6 +65,7 @@ export function defaultConfigPath(): string {
 const USAGE = `ask-mcp v${VERSION} — blocking "ask the user" tool served as rendered HTML forms
 
 Usage: ask-mcp [options]
+       ask-mcp install [--client <name>] [--bun] [--force]
        ask-mcp install-commands [--dir <target>] [--force]
 
 Transport:
@@ -93,6 +94,12 @@ Server options:
   --browser <name>     Open forms in a non-default browser (macOS app name, Windows alias/exe, Linux command)
   --no-open            Do not auto-open the form URL in a browser
   -h, --help           Show this help
+
+install options (connects MCP clients: opencode, claude-code, claude-desktop):
+
+  --client <name>      opencode | claude-code | claude-desktop | all (default: all detected)
+  --bun                Launch via bunx --bun instead of npx (Bun runtime)
+  --force              Overwrite an existing ask entry
 
 install-commands options:
 

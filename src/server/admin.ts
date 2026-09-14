@@ -2,11 +2,11 @@ import { createHash, timingSafeEqual } from "node:crypto"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { readFile, writeFile } from "node:fs/promises"
 import { VERSION } from "../version.js"
-import { configFileSchema, writeConfigFile, type Config } from "../config.js"
+import { configFileSchema, isLoopback, writeConfigFile, type Config } from "../config.js"
 import type { ArtifactStore } from "../store/artifacts.js"
 import type { PendingEntry, PendingStore } from "../store/pending.js"
 import type { TemplateStore } from "../store/templates.js"
-import { renderAdminLogin, renderAdminPage } from "../render/admin.js"
+import { renderAdminLogin, renderAdminPage, renderAdminSetup } from "../render/admin.js"
 import { readBody, sendHtml, sendJson } from "./http-util.js"
 
 export interface AdminDeps {
@@ -48,9 +48,19 @@ function parseCookies(req: IncomingMessage): Record<string, string> {
   return cookies
 }
 
-/** The panel exists only when an admin token is configured; otherwise it 404s without explanation. */
+/** A token is configured when adminToken (or its authToken fallback) is set. */
 export function adminUnlocked(config: Config): boolean {
   return Boolean(config.adminToken)
+}
+
+/**
+ * Open access: no token on a loopback bind. The server only listens locally,
+ * so anyone reaching the panel is already on the machine; a sign-in would be
+ * theater. Set a token for opt-in hardening (shared machines), and always
+ * set one when exposing the server to the network.
+ */
+export function adminOpenAccess(config: Config): boolean {
+  return !adminUnlocked(config) && isLoopback(config.host)
 }
 
 function hasValidSession(deps: AdminDeps, req: IncomingMessage): boolean {
@@ -99,13 +109,17 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 export async function handleAdminRoute(deps: AdminDeps, req: IncomingMessage, res: ServerResponse, pathname: string): Promise<boolean> {
   if (pathname !== "/admin" && !pathname.startsWith("/admin/")) return false
 
-  if (!adminUnlocked(deps.config)) {
-    if (req.method === "GET" && pathname === "/admin") sendHtml(res, 404, renderAdminLogin({ lockedOut: true }))
-    else sendJson(res, 404, { error: "not found" })
+  if (!adminUnlocked(deps.config) && !adminOpenAccess(deps.config)) {
+    if (req.method === "GET" && pathname === "/admin") sendHtml(res, 200, renderAdminSetup())
+    else sendJson(res, 403, { error: "admin panel is exposed without a token — set adminToken (or authToken) and restart" })
     return true
   }
 
   if (pathname === "/admin/login" && req.method === "POST") {
+    if (!adminUnlocked(deps.config)) {
+      sendJson(res, 400, { error: "no admin token configured — the panel is already open" })
+      return true
+    }
     await handleLogin(deps, req, res)
     return true
   }
@@ -117,13 +131,15 @@ export async function handleAdminRoute(deps: AdminDeps, req: IncomingMessage, re
     res.end(JSON.stringify({ ok: true }))
     return true
   }
+  const authorized = adminOpenAccess(deps.config) || hasValidSession(deps, req)
+
   if (pathname === "/admin" && req.method === "GET") {
-    if (!hasValidSession(deps, req)) sendHtml(res, 200, renderAdminLogin())
+    if (!authorized) sendHtml(res, 200, renderAdminLogin())
     else sendHtml(res, 200, renderAdminPage())
     return true
   }
 
-  if (!hasValidSession(deps, req)) {
+  if (!authorized) {
     sendJson(res, 401, { error: "admin session required (POST /admin/login)" })
     return true
   }

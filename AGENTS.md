@@ -53,7 +53,7 @@ Request flow: caller → validate lenient args → resolve template (explicit fi
 - **Self-contained bundle.** `dist/index.js` is a single-file `bun build --target=node` bundle with zero runtime deps (zod + SDK live in devDependencies for tests/typecheck only). Never add a runtime `dependencies` entry — ship it bundled instead.
 - **No comments in code** unless the user asks; explain in commit messages or docs instead.
 - Auth model: `authToken` guards `/mcp` + `/api/*` (Bearer); `adminToken` (falls back to authToken) unlocks `/admin` via hashed session cookie. Tokens are never echoed back by APIs and never editable through the panel.
-- Config precedence CLI > env > file > defaults; `timeoutMs`/`retentionDays` apply live, `port`/`host`/`baseUrl`/`dataDir`/`surface` need restart.
+- Config precedence CLI > env > file > defaults; `timeoutMs`/`retentionDays`/`settleViewMs`/`theme`/`themeStars`/`themeMotion`/`browser` apply live, `port`/`host`/`baseUrl`/`dataDir`/`surface` need restart.
 
 ## Testing
 

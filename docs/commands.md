@@ -4,6 +4,8 @@ The primary surface is the MCP tools (`ask`, `ask_templates`) and the plain-HTTP
 
 ## Installing the slash command
 
+`ask-mcp install` (the client installer) includes it. Standalone:
+
 ```bash
 npx -y @pylotlight/ask-mcp install-commands          # → ~/.config/opencode/commands/ask-admin.md (global)
 npx -y @pylotlight/ask-mcp install-commands --force  # overwrite existing file
@@ -14,13 +16,13 @@ Installed file (skipped if it already exists, unless `--force`; restart the clie
 
 | Command | What it does |
 | --- | --- |
-| `/ask-admin` | Opens the [admin panel](admin.md) in the browser. |
+| `/ask-admin` | Opens the [admin panel](admin.md) in the browser. No setup needed on the default localhost bind — the panel just opens. |
 
 The command bakes in the base URL (`--base-url`, default `http://127.0.0.1:8787`).
 
 ## Direct ask API
 
-`POST /api/ask` is the plain-HTTP twin of the MCP `ask` tool — same validation, same artifacts, same structured result, but trivially callable from scripts and shell injections:
+`POST /api/ask` is the plain-HTTP twin of the MCP `ask` tool — same validation, same artifacts, same structured result, but trivially callable from scripts and shell injections. It needs a running server (`bunx @pylotlight/ask-mcp` listens on `http://127.0.0.1:8787`; it says so instead of crashing if the port is busy):
 
 ```bash
 curl -sS -X POST http://127.0.0.1:8787/api/ask \

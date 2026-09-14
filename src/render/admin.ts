@@ -111,6 +111,11 @@ form .full { grid-column: 1 / -1; }
 }
 .login-card input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .login-error { color: var(--danger); font-size: .82rem; min-height: 1.2em; }
+.setup-steps {
+  margin: 0 0 24px; padding: 14px 16px; overflow: auto; text-align: left;
+  background: var(--well); border: 1px solid var(--well-border); border-radius: var(--radius-xs);
+  font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--text);
+}
 `
 }
 
@@ -134,13 +139,21 @@ ${script ? `<script>${script}</script>` : ""}
 </html>`
 }
 
-export function renderAdminLogin(opts: { lockedOut?: boolean } = {}): string {
-  const note = opts.lockedOut
-    ? `<p class="login-error">The admin panel is not enabled on this server. Start ask-mcp with <code>--admin-token</code> to unlock it.</p>`
-    : `<p class="login-error" id="login-error" role="alert"></p>`
-  const script = opts.lockedOut
-    ? ""
-    : `(() => {
+export function renderAdminLogin(): string {
+  return shell(
+    `<div class="wrap login-wrap">
+<main class="card login-card">
+<header class="brand"><span class="dot"></span>ask<span class="sep">/</span>mcp <span style="color:var(--accent)">admin</span></header>
+<h1>Admin sign-in</h1>
+<p class="subtitle">Enter the admin token to manage asks, config, and templates.</p>
+<p class="login-error" id="login-error" role="alert"></p>
+<form id="login-form" autocomplete="off">
+<input type="password" name="token" placeholder="Admin token" autofocus aria-label="Admin token" required>
+<button type="submit" class="btn-primary">Unlock</button>
+</form>
+</main>
+</div>`,
+    `(() => {
   const form = document.getElementById("login-form");
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -157,21 +170,23 @@ export function renderAdminLogin(opts: { lockedOut?: boolean } = {}): string {
       err.textContent = body.error || "login failed";
     } catch { err.textContent = "login failed"; }
   });
-})();`
+})();`,
+  )
+}
+
+export function renderAdminSetup(): string {
   return shell(
     `<div class="wrap login-wrap">
 <main class="card login-card">
 <header class="brand"><span class="dot"></span>ask<span class="sep">/</span>mcp <span style="color:var(--accent)">admin</span></header>
-<h1>Admin sign-in</h1>
-<p class="subtitle">Enter the admin token to manage asks, config, and templates.</p>
-${note}
-<form id="login-form" autocomplete="off">
-<input type="password" name="token" placeholder="Admin token" autofocus aria-label="Admin token" required>
-<button type="submit" class="btn-primary">Unlock</button>
-</form>
+<h1>Admin is locked</h1>
+<p class="subtitle">This server is reachable from the network and no admin token is set, so the panel stays locked. Set a token and restart:</p>
+<pre class="setup-steps"><code>ask-mcp --admin-token &lt;secret&gt;
+# or: ASK_MCP_ADMIN_TOKEN=&lt;secret&gt;
+# or in config.json: { "adminToken": "&lt;secret&gt;" }</code></pre>
+<p class="subtitle">Then reopen <code>/admin</code> and sign in. <code>--auth-token</code> works too — the panel falls back to it. On the default localhost bind the panel opens without sign-in.</p>
 </main>
 </div>`,
-    script,
   )
 }
 

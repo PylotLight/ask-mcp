@@ -8,6 +8,7 @@ import { TemplateStore } from "./store/templates.js"
 import { createHttpServer } from "./server/http.js"
 import { createMcpServer } from "./server/mcp.js"
 import { installCommands } from "./commands/install.js"
+import { installClients } from "./commands/install-client.js"
 import { VERSION } from "./version.js"
 
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000
@@ -33,6 +34,13 @@ async function main(): Promise<void> {
   if (argv[0] === "install-commands") {
     await installCommands(argv.slice(1)).catch((err) => {
       console.error("install-commands failed:", err instanceof Error ? err.message : err)
+      process.exit(1)
+    })
+    return
+  }
+  if (argv[0] === "install") {
+    await installClients(argv.slice(1)).catch((err) => {
+      console.error("install failed:", err instanceof Error ? err.message : err)
       process.exit(1)
     })
     return

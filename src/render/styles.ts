@@ -7,7 +7,7 @@ export function pageStyles(density: "comfortable" | "compact"): string {
   --label: rgba(255,255,255,.70);
   --glass: rgba(255,255,255,.095); --glass-2: rgba(255,255,255,.058);
   --glass-hi: rgba(255,255,255,.13);
-  --shell: rgba(255,255,255,.095);
+  --shell: rgba(255,255,255,.06);
   --well: rgba(0,0,0,.20);
   --well-border: rgba(255,255,255,.07);
   --control: rgba(255,255,255,.062);
@@ -168,8 +168,8 @@ body[data-motion="subtle"] .bg, body[data-motion="still"] .bg { animation-name: 
 .card {
   position: relative;
   background: var(--shell);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
-  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: var(--pad) calc(var(--pad) + 8px);
