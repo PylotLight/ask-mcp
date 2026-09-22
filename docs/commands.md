@@ -22,7 +22,7 @@ The command bakes in the base URL (`--base-url`, default `http://127.0.0.1:8787`
 
 ## Direct ask API
 
-`POST /api/ask` is the plain-HTTP twin of the MCP `ask` tool — same validation, same artifacts, same structured result, but trivially callable from scripts and shell injections. It needs a running server (`bunx @pylotlight/ask-mcp` listens on `http://127.0.0.1:8787`; it says so instead of crashing if the port is busy):
+`POST /api/ask` is the plain-HTTP twin of the MCP `ask` tool — same validation, same artifacts, same structured result, but trivially callable from scripts and shell injections. It needs a running server (`bunx @pylotlight/ask-mcp --stdio` for client-spawned use, or `bunx @pylotlight/ask-mcp` for a shared server on `http://127.0.0.1:8787`; remote/NAS setups see [hosting.md](hosting.md)):
 
 ```bash
 curl -sS -X POST http://127.0.0.1:8787/api/ask \

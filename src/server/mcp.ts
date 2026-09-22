@@ -39,7 +39,7 @@ Guidance:
 
 Blocks the tool call until the user responds, cancels, or the timeout is reached. Returns a structured result (action, selected ids/values, optional note). On timeout, treat the question as unanswered and proceed without pestering again.
 
-The form URL opens in the user's browser automatically when the call starts.`
+The form URL opens in the user's browser automatically on local binds; on hosted binds (non-loopback or --no-open) it is logged instead — surface that URL to the user so they can open it manually.`
 
 /**
  * Stateless pattern: a fresh server+transport pair per request, no session state.

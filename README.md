@@ -34,10 +34,17 @@ Built-in question tools (opencode's `question`, Claude Code's `AskUserQuestion`)
 
 ## Install
 
+Recommended — the client spawns the server over stdio (no port to manage; form pages still open over loopback HTTP):
+
 ```bash
-bunx @pylotlight/ask-mcp              # run without installing
-npx -y @pylotlight/ask-mcp            # same, via npm
-npm i -g @pylotlight/ask-mcp          # or install globally → `ask-mcp`
+bunx @pylotlight/ask-mcp --stdio     # Bun
+npx -y @pylotlight/ask-mcp --stdio   # npm / Node
+```
+
+Or install globally and run the same flag:
+
+```bash
+npm i -g @pylotlight/ask-mcp          # → `ask-mcp --stdio`
 ```
 
 Requires Node ≥ 22 or Bun ≥ 1.2.
@@ -58,7 +65,9 @@ Existing entries are left alone unless `--force`; every touched file is backed u
 
 The installer also sets opencode's `experimental.mcp_timeout`: blocking asks need a long tool timeout (client defaults ~30 s kill them — ten minutes is a good start; match it with `--timeout-ms`).
 
-Other MCP clients: launch the package over stdio with command `npx -y @pylotlight/ask-mcp --stdio` (`bunx --bun …` for the Bun runtime). A small loopback HTTP server serves the form pages (falls back to a free port if 8787 is busy).
+Other MCP clients: launch the package over stdio — command `bunx`, args `["@pylotlight/ask-mcp", "--stdio"]` (or command `npx`, args `["-y", "@pylotlight/ask-mcp", "--stdio"]`; `bunx --bun …` for the Bun runtime). A small loopback HTTP server serves the form pages (falls back to a free port if 8787 is busy).
+
+Running the agent on a NAS / container / remote pod? Same binary, hosted flags: `--host 0.0.0.0 --port <n> --base-url https://<public-origin>` plus tokens — see [docs/hosting.md](docs/hosting.md).
 
 ## Slash command (opencode / openchamber)
 
@@ -90,4 +99,5 @@ npx -y @pylotlight/ask-mcp install-commands   # installs /ask-admin
 - [docs/ask-tool.md](docs/ask-tool.md) — input kinds, inference rules, result shapes, templates
 - [docs/admin.md](docs/admin.md) — the admin panel
 - [docs/commands.md](docs/commands.md) — templates, HTTP API, slash command
+- [docs/hosting.md](docs/hosting.md) — hosted / reverse-proxy mode (NAS, containers, OpenChamber)
 - [docs/reference.md](docs/reference.md) — CLI flags, security model, development, roadmap

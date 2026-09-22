@@ -24,8 +24,9 @@ function listen(server: ReturnType<typeof createHttpServer>, port: number, host:
 
 /** Form base URL: honor an explicitly configured baseUrl, else derive from the actual bound port. */
 function formBaseUrl(config: Config, boundPort: number): string {
+  const base = config.baseUrl.replace(/\/$/, "")
   const derived = `http://${config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host}:${config.port}`
-  if (config.baseUrl && config.baseUrl !== derived) return config.baseUrl
+  if (base !== derived) return base
   return `http://127.0.0.1:${boundPort}`
 }
 
@@ -89,11 +90,13 @@ async function main(): Promise<void> {
     const mcp = createMcpServer(deps)
     await mcp.connect(new StdioServerTransport())
     console.error(`ask-mcp v${VERSION} ready (stdio MCP; form pages on ${deps.baseUrl})`)
+    if (!deps.openBrowser) console.error(`Auto-open disabled: open form URLs manually`)
   } else {
-    console.error(`ask-mcp v${VERSION} listening on http://localhost:${config.port} (bound: ${config.host})`)
+    console.error(`ask-mcp v${VERSION} listening on http://${config.host}:${boundPort} (public: ${config.baseUrl})`)
     console.error(`MCP endpoint: ${config.baseUrl}/mcp`)
     console.error(`Artifacts: ${dataDir}${removed ? ` (pruned ${removed} old day dirs)` : ""}`)
     console.error(`Admin panel: ${config.adminToken ? `${config.baseUrl}/admin` : "disabled (start with --admin-token)"}`)
+    if (!config.openBrowser) console.error(`Auto-open disabled (non-loopback bind or --no-open): open form URLs manually`)
   }
 
   const shutdown = (): void => {

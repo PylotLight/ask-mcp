@@ -10,8 +10,8 @@ ask-mcp install [--client <name>] [--bun] [--force]
 ask-mcp install-commands [--dir <target>] [--force]
 
   --port <n>           HTTP port (default: 8787)
-  --host <addr>        Bind address (default: 127.0.0.1)
-  --base-url <url>     Public base URL for form links
+  --host <addr>        Bind address (default: 127.0.0.1; 0.0.0.0 for hosted / containers)
+  --base-url <url>     Public base URL for form links (required when hosted, e.g. https://ask.example.com)
   --config <path>      Config file (default: ~/.config/ask-mcp/config.json; CLI > env > file > defaults)
   --data-dir <dir>     Artifact directory (default: ~/.config/ask-mcp)
   --retention-days <n> Prune artifacts older than n days at startup + every 6 h (default: 0 = forever)
@@ -24,12 +24,12 @@ ask-mcp install-commands [--dir <target>] [--force]
   --theme-motion <m>   Theme animation: full | subtle | still (default: full)
   --auth-token <t>     Require Bearer auth on the MCP endpoint
   --admin-token <t>    Sign-in gate for the /admin panel (falls back to --auth-token; only needed off localhost)
-  --no-open            Don't auto-open forms in a browser
-  --stdio              Serve MCP over stdin/stdout (client-spawned mode); form pages still served over loopback HTTP
+  --no-open            Don't auto-open forms in a browser (implied on non-loopback binds)
+  --stdio              Serve MCP over stdin/stdout (client-spawned mode); form pages still served over HTTP
   -h, --help           Show help
 ```
 
-Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the config file (managed in the admin panel's **Config** tab).
+Every flag has an `ASK_MCP_*` env equivalent; persistent settings live in the config file (managed in the admin panel's **Config** tab). Hosted / reverse-proxy setup (NAS, containers, OpenChamber): [hosting.md](hosting.md).
 
 ## Security model
 

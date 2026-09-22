@@ -71,14 +71,15 @@ Usage: ask-mcp [options]
 Transport:
 
   --stdio              Serve MCP over stdin/stdout — for clients that spawn the
-                       package directly ("claude mcp add ask -- npx -y @pylotlight/ask-mcp --stdio").
-                       Form pages still open via a short-lived loopback HTTP server.
+                        package directly ("bunx @pylotlight/ask-mcp --stdio").
+                        Form pages still open via a short-lived loopback HTTP server.
 
 Server options:
 
   --port <n>           HTTP port (default: ${DEFAULT_PORT})
-  --host <addr>        Bind address (default: 127.0.0.1)
-  --base-url <url>     Public base URL for form links (default: http://<loopback host>:<port>)
+  --host <addr>        Bind address (default: 127.0.0.1; use 0.0.0.0 for containers / hosted servers)
+  --base-url <url>     Public base URL for form links (default: http://<loopback host>:<port>;
+                       set to the reverse-proxy origin, e.g. https://ask.example.com, when hosted)
   --config <path>      Config file (default: ${defaultConfigPath()}; CLI > env > file > defaults)
   --data-dir <dir>     Artifact directory (default: $ASK_MCP_DATA_DIR or ~/.config/ask-mcp)
   --retention-days <n> Prune day-partitioned artifacts older than n days at startup (default: 0 = keep forever)
@@ -92,8 +93,12 @@ Server options:
   --auth-token <t>     Require 'Authorization: Bearer <t>' on MCP endpoint calls
   --admin-token <t>    Unlock the /admin panel (falls back to --auth-token)
   --browser <name>     Open forms in a non-default browser (macOS app name, Windows alias/exe, Linux command)
-  --no-open            Do not auto-open the form URL in a browser
+  --no-open            Do not auto-open the form URL in a browser (implied on non-loopback binds;
+                       hosted servers always log the URL for the user to open manually)
   -h, --help           Show this help
+
+ Hosted mode (reverse proxy): --host 0.0.0.0 --port <n> --base-url https://<public-origin>
+ plus --auth-token/--admin-token. See docs/hosting.md.
 
 install options (connects MCP clients: opencode, claude-code, claude-desktop):
 
@@ -261,6 +266,12 @@ function parseCli(argv: string[]): { settings: RawSettings; configPath?: string;
   return { settings, configPath, help }
 }
 
+function normalizeBaseUrl(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim().replace(/\/$/, "")
+  return trimmed === "" ? undefined : trimmed
+}
+
 function resolveSurface(value: string | undefined): SurfaceMode {
   if (value === undefined) return "auto"
   if (value === "auto" || value === "apps" || value === "browser") return value
@@ -325,7 +336,7 @@ export function loadConfig(argv: string[] = process.argv.slice(2)): Config {
   return {
     port,
     host,
-    baseUrl: merged.baseUrl ?? `http://${loopback(host)}:${port}`,
+    baseUrl: normalizeBaseUrl(merged.baseUrl) ?? `http://${loopback(host)}:${port}`,
     dataDir: merged.dataDir ?? defaultDataDir(),
     retentionDays,
     timeoutMs,
@@ -351,7 +362,7 @@ function cleanRaw(raw: RawSettings): FileSettings & { stdio?: boolean } {
   }
   assign("port", resolveInt(raw.port, "--port", 1))
   assign("host", typeof raw.host === "string" ? raw.host : undefined)
-  assign("baseUrl", typeof raw.baseUrl === "string" ? raw.baseUrl : undefined)
+  assign("baseUrl", typeof raw.baseUrl === "string" ? normalizeBaseUrl(raw.baseUrl) : undefined)
   assign("dataDir", typeof raw.dataDir === "string" ? raw.dataDir : undefined)
   assign("retentionDays", resolveInt(raw.retentionDays, "--retention-days", 0))
   assign("timeoutMs", resolveInt(raw.timeoutMs, "--timeout-ms", 1000))
