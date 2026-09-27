@@ -51,6 +51,30 @@ bun src/index.ts     # run from source (or: node dist/index.js)
 
 Artifacts land in `--data-dir` as `YYYY-MM-DD/<token>/{spec.json,response.json,render.html}` — the full audit trail of every question asked, shown, and answered.
 
+## Releasing
+
+Publishing is automated: cutting a GitHub release runs the `publish` workflow (typecheck → tests → tag/package.json version check → build → `npm publish --provenance`). Pushing to `main` or opening a PR runs the lighter `ci` workflow (typecheck → tests → build).
+
+No npm token lives in GitHub secrets — automated publishing uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC), which mints a short-lived token per run. Long-lived 2FA-bypass tokens are deprecated for publishing (npm removes direct publish through them around January 2027), so don't add one.
+
+One-time setup (interactive, with 2FA — do it in the browser, not via a token):
+
+1. npmjs.com → `@pylotlight/ask-mcp` → Settings → Trusted Publisher → Manage Trusted Publishers → add GitHub Actions with organization `PylotLight`, repository `ask-mcp`, workflow file name `publish.yml`.
+2. Done. No GitHub-side secret required.
+
+Per release:
+
+```bash
+# bump both (they must stay in sync — CI enforces tag == package.json)
+# package.json "version" and src/version.ts VERSION
+bun run typecheck && bun run test && bun run build
+git commit -am "…"
+git tag -a vX.Y.Z -m "vX.Y.Z — …" && git push origin main vX.Y.Z
+gh release create vX.Y.Z --title "vX.Y.Z — …" --notes "…" --latest
+```
+
+If a release already exists but its version never reached npm (e.g. predates this automation), backfill it from the Actions tab: run the `publish` workflow manually (`workflow_dispatch` skips the tag check).
+
 ## Roadmap
 
 Shipped: admin panel, `/ask-admin`. Deferred: MCP Apps ([design](surface-a-mcp-apps.md)). Ideas: [admin-roadmap.md](admin-roadmap.md), [feature-ideas.md](feature-ideas.md).
