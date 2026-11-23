@@ -12,6 +12,16 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug OIDC claims (temporary)
+        run: |
+          VAL=$(curl -s "$ACTIONS_ID_TOKEN_REQUEST_URL" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" | python3 -c "import json,sys; print(json.load(sys.stdin)['value'])")
+          PAYLOAD=$(echo "$VAL" | cut -d. -f2)
+          python3 - "$PAYLOAD" <<'EOF'
+import base64, json, sys
+payload = sys.argv[1]
+payload += "=" * (-len(payload) % 4)
+print(json.dumps(json.loads(base64.urlsafe_b64decode(payload)), indent=2, sort_keys=True))
+EOF
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
