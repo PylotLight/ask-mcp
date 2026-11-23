@@ -12,6 +12,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - run: echo "OIDC_URL=${ACTIONS_ID_TOKEN_REQUEST_URL:-MISSING} EVENTS=${GITHUB_EVENT_NAME:-?}"
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
