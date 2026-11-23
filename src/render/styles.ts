@@ -230,17 +230,17 @@ h1 {
 @media (prefers-color-scheme: light) { .blocks pre { background: rgba(255,255,255,.55); } }
 .blocks code { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); padding: .14em .45em; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--border); font-variant-ligatures: none; }
 .blocks pre code { padding: 0; background: none; border: 0; font-size: 1em; color: var(--text); font-weight: 400; }
-.blocks ul { margin: 0; padding-left: 4px; list-style: none; }
-.blocks ul li { position: relative; padding-left: 21px; margin-top: 7px; line-height: 1.55; max-width: 68ch; }
-.blocks ul li::before {
+.md ul { margin: 0; padding-left: 4px; list-style: none; }
+.md ul li { position: relative; padding-left: 21px; margin-top: 7px; line-height: 1.55; max-width: 68ch; }
+.md ul li::before {
   content: ""; position: absolute; left: 2px; top: .6em;
   width: 7px; height: 7px; border-radius: 50%;
   background: rgba(255,255,255,.30);
 }
-@media (prefers-color-scheme: light) { .blocks ul li::before { background: rgba(24,24,27,.25); } }
-.blocks ol { margin: 0; padding-left: 22px; }
-.blocks ol li { margin-top: 7px; line-height: 1.55; max-width: 68ch; }
-.blocks ol li::marker { color: var(--faint); font-weight: 600; }
+@media (prefers-color-scheme: light) { .md ul li::before { background: rgba(24,24,27,.25); } }
+.md ol { margin: 0; padding-left: 22px; }
+.md ol li { margin-top: 7px; line-height: 1.55; max-width: 68ch; }
+.md ol li::marker { color: var(--faint); font-weight: 600; }
 .blocks a { color: var(--accent-2); text-decoration: none; border-bottom: 1px solid transparent; }
 .blocks a:hover { border-bottom-color: var(--accent-2); }
 .blocks blockquote {
@@ -315,6 +315,60 @@ tbody tr:hover { background: var(--glass-hi); }
 .dl.del { color: var(--danger); background: var(--danger-soft); }
 .dl.hunk { color: var(--accent-2); background: var(--info-soft); }
 .dl.meta { color: var(--faint); }
+
+/* Tree block: branch flow (org-chart) or compact indented list */
+.tree-flow { overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.tree-flow::-webkit-scrollbar { height: 6px; }
+.tree-flow::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+.tree-flow::-webkit-scrollbar-track { background: transparent; }
+.tree-flow ul { position: relative; display: flex; justify-content: center; align-items: flex-start; width: max-content; margin: 0; padding: 0; list-style: none; }
+.tree-flow > ul { min-width: 100%; }
+.tree-flow ul ul { padding-top: 22px; }
+.tree-flow ul ul::before { content: ""; position: absolute; top: 0; left: 50%; width: 0; height: 22px; border-left: 1px solid var(--border-strong); }
+.tree-flow li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 22px 6px 0; list-style: none; }
+.tree-flow > ul > li { padding-top: 0; }
+.tree-flow li::before, .tree-flow li::after { content: ""; position: absolute; top: 0; right: 50%; width: 50%; height: 22px; border-top: 1px solid var(--border-strong); }
+.tree-flow li::after { right: auto; left: 50%; border-left: 1px solid var(--border-strong); }
+.tree-flow li:only-child::before, .tree-flow li:only-child::after { display: none; }
+.tree-flow li:only-child { padding-top: 0; }
+.tree-flow li:first-child::before, .tree-flow li:last-child::after { border: 0; }
+.tree-flow li:last-child::before { border-right: 1px solid var(--border-strong); border-radius: 0 10px 0 0; }
+.tree-flow li:first-child::after { border-radius: 10px 0 0 0; }
+.tree-flow > ul > li::before, .tree-flow > ul > li::after { display: none; }
+
+.tree-list ul { margin: 0; padding: 0; list-style: none; }
+.tree-list > ul > li + li { margin-top: 10px; }
+.tree-list li { position: relative; list-style: none; }
+.tree-list ul ul { margin-top: 5px; padding-left: 22px; border-left: 1px solid var(--border); }
+.tree-list ul ul > li::before { content: ""; position: absolute; left: -22px; top: 11px; width: 14px; height: 1px; background: var(--border); }
+
+.tree-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.tree-node { width: 170px; min-width: 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--control); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); text-align: left; }
+.tree-node-head { display: flex; align-items: center; gap: 8px; }
+.tree-node.status-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 18px var(--accent-soft); }
+.tree-node.status-done { border-color: rgba(60,224,167,.45); }
+.tree-node.status-warn { border-color: rgba(255,199,87,.45); }
+.tree-node.status-muted { opacity: .62; }
+.tree-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.tree-dot.status-active { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.tree-dot.status-done { background: var(--success); }
+.tree-dot.status-warn { background: var(--warn); }
+.tree-dot.status-muted { background: var(--faint); box-shadow: none; }
+.tree-title { flex: 1; min-width: 0; font-size: .92em; font-weight: 550; line-height: 1.4; overflow-wrap: anywhere; }
+.tree-meta { flex: none; margin-left: auto; padding: 2px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 600; letter-spacing: .03em; }
+.tree-note { margin: 4px 0 0 15px; color: var(--muted); font-size: .78em; line-height: 1.45; }
+.tree-node .tree-note { margin-left: 0; }
+.tree-node .tree-meta { display: inline-block; margin: 7px 0 0; }
+@media (max-width: 560px) {
+  .tree-flow { overflow-x: visible; padding-bottom: 4px; }
+  .tree-flow ul { display: block; width: auto; min-width: 0; }
+  .tree-flow ul ul { padding-top: 6px; padding-left: 16px; border-left: 1px solid var(--border); }
+  .tree-flow li { display: block; padding: 6px 0 0; }
+  .tree-flow > ul > li { padding-top: 0; }
+  .tree-flow li::before, .tree-flow li::after, .tree-flow ul ul::before { display: none; }
+  .tree-flow .tree-node { width: auto; max-width: none; }
+  .tree-node { padding: 9px 11px; }
+}
 
 /* Settle view: what was answered, shown after submit instead of slamming shut */
 .settle {

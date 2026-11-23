@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest"
+import { renderInputRegion } from "../src/render/input.js"
+import { clientScript } from "../src/render/client.js"
 import { renderMarkdown } from "../src/render/markdown.js"
 import { PendingStore } from "../src/store/pending.js"
 import type { AskArgs } from "../src/schema/index.js"
@@ -82,5 +84,27 @@ describe("PendingStore", () => {
     store.entries.get(entry.token)!.createdAt = Date.now() - 20 * 60 * 1000
     store.create(args)
     expect(store.status(entry.token)).toBeUndefined()
+  })
+})
+
+describe("Other input", () => {
+  const singleOther = {
+    title: "t",
+    blocks: [],
+    input: { type: "single_choice", options: [{ id: "a", label: "A" }], other: { placeholder: "Custom…" } },
+  } as unknown as AskArgs
+
+  it("renders the Other control as a labelled choice wrapping a text input", () => {
+    const html = renderInputRegion(singleOther)
+    expect(html).toContain('id="other-choice"')
+    expect(html).toContain('class="choice choice-other"')
+    expect(html).toContain('class="other-input"')
+    expect(html).toContain("Custom…")
+  })
+
+  it("focuses the Other input when the Other choice is selected", () => {
+    const js = clientScript(singleOther, 3000)
+    expect(js).toContain('c.value === "__other__" && c.checked')
+    expect(js).toContain("oi.focus()")
   })
 })

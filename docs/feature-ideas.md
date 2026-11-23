@@ -4,7 +4,7 @@
 
 **How to read:** each item is a one-liner with an effort tag — `[S]` small (hours), `[M]` medium (a day or two), `[L]` large (multi-day / architectural). Items already shipped or already designed in the roadmap are marked ✅ / 🚧. The renderer's invariants hold for everything below: lenient-at-the-edge, strict-inside schemas; single-shot store; best-effort artifacts; no framework in `render/`.
 
-**Current state (v0.4.0) for orientation:** 5 input kinds (`approve`, `single_choice`, `multi_choice`, `text`, `form`), 8 info blocks (heading, paragraph, markdown, callout, steps, option_card, table, divider), Other escape hatch, templates with merge, admin panel (live / history / config / templates), day-partitioned artifacts, SSE live pages, `/api/ask` HTTP twin, stdio + Streamable HTTP transports, `install-commands`.
+**Current state (v0.4.0) for orientation:** 5 input kinds (`approve`, `single_choice`, `multi_choice`, `text`, `form`), 10 info blocks (heading, paragraph, markdown, callout, steps, option_card, table, diff, tree, divider), Other escape hatch, templates with merge, admin panel (live / history / config / templates), day-partitioned artifacts, SSE live pages, `/api/ask` HTTP twin, stdio + Streamable HTTP transports, `install-commands`.
 
 ---
 
@@ -67,7 +67,7 @@
 - [M] `list` block — ordered/unordered with optional per-item icons (check/cross/warn), nested one level.
 - [M] `quote` block — attribution-styled citation.
 - [M] `collapsible` block — accordion-wrapped markdown ("details" summary) for long content that shouldn't dominate.
-- [M] `tree` block — indented file-tree / hierarchy rendering with +/- diff markers per node.
+- ✅ `tree` block — branch flow (org-chart) or indented hierarchy, with per-node status dots, notes, and meta badges. *(shipped)*
 - [M] `log` block — monospace tail with auto-scroll cap and "show all" expander.
 - [L] `mermaid` block — diagrams; client-side render from a pinned, CSP-safe bundled renderer, or accept pre-rendered SVG only (safer).
 - [L] `comparison` block — two-column pro/con or A/B layout (option cards generalize, but side-by-side reads better).

@@ -156,7 +156,11 @@ export function clientScript(args: AskArgs, settleViewMs = 3000): string {
     if (type === "single_choice") {
       var sel = document.querySelector('input[name="choice"]:checked');
       var ok1 = !!sel;
-      if (ok1 && sel.value === "__other__") ok1 = !!$("other-input") && $("other-input").value.trim().length > 0;
+      if (ok1 && sel.value === "__other__") {
+        var o1 = $("other-input");
+        ok1 = !!o1 && o1.value.trim().length > 0;
+        if (!ok1 && o1) o1.focus();
+      }
       $("choice-list").classList.toggle("invalid", !ok1);
       return ok1;
     }
@@ -165,7 +169,9 @@ export function clientScript(args: AskArgs, settleViewMs = 3000): string {
       var n = checked.length;
       var min = Number($("choice-list").dataset.min || 0), max = Number($("choice-list").dataset.max || Infinity);
       var otherSel = checked.some(function (c) { return c.value === "__other__"; });
-      var okOther = !otherSel || (!!$("other-input") && $("other-input").value.trim().length > 0);
+      var o2 = $("other-input");
+      var okOther = !otherSel || (!!o2 && o2.value.trim().length > 0);
+      if (!okOther && o2) o2.focus();
       var ok2 = n >= min && n <= max && okOther;
       $("choice-error").style.display = (n >= min && n <= max) ? "none" : "block";
       return ok2;
@@ -317,6 +323,10 @@ export function clientScript(args: AskArgs, settleViewMs = 3000): string {
       document.querySelectorAll("#choice-list .choice").forEach(function (card) {
         card.classList.toggle("selected", card.querySelector("input").checked);
       });
+      if (c.value === "__other__" && c.checked) {
+        var oi = $("other-input");
+        if (oi) oi.focus();
+      }
       var counter = $("choice-count");
       if (counter) {
         var nSel = document.querySelectorAll('input[name="choice"]:checked').length;

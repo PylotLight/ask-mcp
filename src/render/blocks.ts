@@ -1,6 +1,40 @@
-import type { InfoBlock } from "../schema/index.js"
+import type { InfoBlock, TreeNode } from "../schema/index.js"
 import { esc } from "./escape.js"
 import { renderMarkdown } from "./markdown.js"
+
+function treeStatus(node: TreeNode): string {
+  return node.status ?? "neutral"
+}
+
+function treeHead(node: TreeNode, includeMeta = true): string {
+  const meta = includeMeta && node.meta ? `<span class="tree-meta">${esc(node.meta)}</span>` : ""
+  return `<span class="tree-dot status-${treeStatus(node)}" aria-hidden="true"></span><span class="tree-title">${esc(node.title)}</span>${meta}`
+}
+
+function renderFlowNode(node: TreeNode): string {
+  const note = node.note ? `<div class="tree-note">${esc(node.note)}</div>` : ""
+  const meta = node.meta ? `<span class="tree-meta">${esc(node.meta)}</span>` : ""
+  const children = node.children?.length
+    ? `<ul>${node.children.map(renderFlowNode).join("")}</ul>`
+    : ""
+  return `<li><div class="tree-node status-${treeStatus(node)}"><div class="tree-node-head">${treeHead(node, false)}</div>${note}${meta}</div>${children}</li>`
+}
+
+function renderListNode(node: TreeNode): string {
+  const meta = node.meta ? `<span class="tree-meta">${esc(node.meta)}</span>` : ""
+  const note = node.note ? `<div class="tree-note">${esc(node.note)}</div>` : ""
+  const children = node.children?.length
+    ? `<ul>${node.children.map(renderListNode).join("")}</ul>`
+    : ""
+  return `<li><div class="tree-row"><span class="tree-dot status-${treeStatus(node)}" aria-hidden="true"></span><span class="tree-title">${esc(node.title)}</span>${meta}</div>${note}${children}</li>`
+}
+
+function renderTree(block: Extract<InfoBlock, { type: "tree" }>): string {
+  if (block.layout === "list") {
+    return `<div class="tree-list"><ul>${renderListNode(block.root)}</ul></div>`
+  }
+  return `<div class="tree-flow"><ul>${renderFlowNode(block.root)}</ul></div>`
+}
 
 export function renderBlock(block: InfoBlock): string {
   switch (block.type) {
@@ -56,6 +90,8 @@ export function renderBlock(block: InfoBlock): string {
       const head = `<div class="diff-head"><code>${esc(name)}</code><span class="diff-stats"><em class="add">+${added}</em> <em class="del">&minus;${removed}</em></span></div>`
       return `<div class="diff-block">${head}<div class="diff-body">${rows}</div></div>`
     }
+    case "tree":
+      return renderTree(block)
     case "divider":
       return "<hr>"
   }

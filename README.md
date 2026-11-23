@@ -84,8 +84,8 @@ npx -y @pylotlight/ask-mcp install-commands   # installs /ask-admin
 ## Features
 
 - **Five input kinds** — `approve`, `single_choice`, `multi_choice`, `text`, `form`, with type inference and server-side validation.
-- **Other escape hatch** — choice prompts accept `other: { placeholder }`: typing auto-selects it, empty blocks submit, the answer arrives as `otherText`.
-- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, diffs, dividers.
+- **Other escape hatch** — choice prompts accept `other: { placeholder }`: selecting Other focuses its inline text field, typing anywhere auto-selects it, empty Other submits, and the answer arrives as `otherText`.
+- **Info blocks** — headings, paragraphs, markdown (safe subset), callouts, steps, option cards, tables, diffs, trees (branching flow or indented list), dividers.
 - **Dry run** — `dryRun: true` validates, renders, and archives without blocking, opening, or prompting. Self-check a form before the real call.
 - **Artifacts** — every ask persisted (`spec.json`, `response.json`, `render.html`) under `~/.config/ask-mcp/YYYY-MM-DD/<token>/`, with retention pruning.
 - **Live pages** — status tracked over SSE; after answering, a settle view shows what was recorded plus a permalink, with auto-close countdown + Close now / Stay open / Copy link (`--settle-view-ms`, default 3 s; `0` stays open).

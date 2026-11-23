@@ -120,6 +120,7 @@ describe("stdio transport", () => {
       try {
         await waitFor(() => h.stderr.includes("busy"), "busy-port fallback log")
         expect(h.stderr).toContain("port 8796 busy")
+        await waitFor(() => /form pages on (http:\S+?)\)/.test(h.stderr), "fallback form pages log")
         const baseUrl = /form pages on (http:\S+?)\)/.exec(h.stderr)![1]!
         expect(baseUrl).not.toContain("8796")
         const health = await fetch(`${baseUrl}/healthz`)

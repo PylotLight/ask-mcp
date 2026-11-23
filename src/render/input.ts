@@ -30,7 +30,7 @@ function metaClass(meta?: string): string {
 /** Final pseudo-option holding the free-text escape hatch. */
 function otherChoice(kind: "radio" | "checkbox", placeholder?: string): string {
   const ph = esc(placeholder ?? "Type your own…")
-  return `<label class="choice choice-other"><input type="${kind}" name="choice" value="${OTHER_ID}">
+  return `<label class="choice choice-other" id="other-choice"><input type="${kind}" name="choice" value="${OTHER_ID}">
 <span class="choice-num choice-num-other" aria-hidden="true"></span><span><span class="choice-title">Other</span><input type="text" class="other-input" id="other-input" placeholder="${ph}" aria-label="Other"></span></label>`
 }
 

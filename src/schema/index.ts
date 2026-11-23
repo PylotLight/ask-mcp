@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { askArgsSchema, type AskArgs, type AskArgsInput, type AskOptions } from "./args.js"
-import { infoBlockSchema, type InfoBlock } from "./blocks.js"
+import { infoBlockSchema, type InfoBlock, type TreeNode } from "./blocks.js"
 import {
   choiceOptionSchema,
   formFieldSchema,
@@ -16,7 +16,7 @@ import {
 } from "./input.js"
 import { askActionSchema, askResultSchema, requestIdSchema, type AskAction, type AskResult } from "./result.js"
 
-export { MAX_BLOCKS, MAX_OPTION_CARDS, MAX_STEPS, MAX_TABLE_ROWS, blockIdSchema, infoBlockSchema } from "./blocks.js"
+export { MAX_BLOCKS, MAX_OPTION_CARDS, MAX_STEPS, MAX_TABLE_ROWS, MAX_TREE_CHILDREN, MAX_TREE_DEPTH, MAX_TREE_NODES, blockIdSchema, infoBlockSchema, treeBlockSchema, treeNodeSchema } from "./blocks.js"
 export {
   MAX_FORM_FIELDS,
   MAX_OPTIONS,
@@ -42,6 +42,7 @@ export type {
   ChoiceOption,
   FormField,
   FormSchema,
+  TreeNode,
 }
 
 export function askArgsJsonSchema(): Record<string, unknown> {

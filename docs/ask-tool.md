@@ -27,12 +27,33 @@ Reference for the `ask` MCP tool: example, input kinds, inference rules, result 
 Five kinds, chosen by `input.type` (optional — usually inferred):
 
 - `approve` — a single recommended plan. Extras: `approveLabel`, `rejectLabel`, `noteRequired` (`never`/`on_reject`/`always`), `notePlaceholder`. A rejection reason flows through `note`.
-- `single_choice` — pick one of `options`. Extras: `other: { placeholder }` for the free-text escape hatch.
-- `multi_choice` — pick several. Extras: `other`, plus `min`/`max`. Never inferred — pass it explicitly.
+- `single_choice` — pick one of `options`. Extras: `other: { placeholder }` for the free-text escape hatch. Selecting Other focuses its inline text field; typing auto-selects it.
+- `multi_choice` — pick several. Extras: `other` (Selecting Other focuses its inline field; it counts toward `min`/`max`), plus `min`/`max`. Never inferred — pass it explicitly.
 - `text` — free text. Extras: `placeholder`, `multiline`, `minLength`, `maxLength`, `submitLabel`.
 - `form` — typed fields via a JSON-schema-ish `schema` (string/number/integer/boolean, `enum`, `format`, bounds, `required`).
 
 Put alternatives in `option_card` blocks and reference the same ids in choice options — cards become the clickable choices automatically. One primary input per ask; follow-ups go in subsequent calls. Keep blocks concise — this is a decision surface, not a report.
+
+## Tree block
+
+`tree` renders a hierarchy above the input — a plan, idea map, dependency tree, or file tree. `layout: "flow"` (default) draws a branching org-chart; `layout: "list"` renders a compact indented list. Nodes carry an optional `note`, `meta` badge, and `status` (`neutral`, `active`, `done`, `warn`, `muted`).
+
+```jsonc
+{
+  "type": "tree",
+  "layout": "flow",
+  "root": {
+    "title": "Ship the feature",
+    "status": "active",
+    "children": [
+      { "title": "Renderer", "meta": "2 files", "status": "done" },
+      { "title": "Docs", "children": [{ "title": "README" }] }
+    ]
+  }
+}
+```
+
+Limits: 60 nodes, 5 levels, 8 children per node. On narrow screens the flow collapses to an indented list. Pair a tree with `single_choice` options when the user should pick a branch — nodes themselves are not interactive.
 
 ## Input inference
 
